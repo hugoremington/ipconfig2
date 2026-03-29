@@ -112,6 +112,8 @@ ipconfig2 [/version]
 
 ## Changelog
 
+### 0.4.0.4
+* Fixed $autoConfigurationBinding now reporting correctly thanks to netsh DAD Transmits data point.
 ### 0.4.0.3
 * Fixed missing variable $firstIPv6.
 * Fixed netbios binding via $netbiosEnabled = if ($netbiosEnabled -eq $True) { "Enabled" } else { "Disabled" }.
