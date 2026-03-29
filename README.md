@@ -181,3 +181,5 @@ ipconfig2.exe or .\ipconfig2.ps1
 Author: Hugo Remington
 
 License: MIT
+
+Compiled as an EXE using **MScholtes/PS2EXE**(https://github.com/MScholtes/PS2EXE)
