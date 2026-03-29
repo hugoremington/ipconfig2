@@ -182,4 +182,4 @@ Author: Hugo Remington
 
 License: MIT
 
-Compiled as an EXE using **MScholtes/PS2EXE**(https://github.com/MScholtes/PS2EXE)
+Compiled as an EXE using [MScholtes/PS2EXE](https://github.com/MScholtes/PS2EXE)
