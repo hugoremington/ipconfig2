@@ -187,3 +187,5 @@ Author: Hugo Remington
 License: MIT
 
 Compiled as an EXE using [MScholtes/PS2EXE](https://github.com/MScholtes/PS2EXE)
+
+Public IP and Public DNS retrieval using REST API via free providers "ip-api.com" and "ipinfo.io". Licensing is subject to their terms and conditions.
