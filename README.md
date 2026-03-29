@@ -164,5 +164,7 @@ IPConfig2 prioritises **depth of information over raw execution speed**, providi
 * Got public IP address working.
 * Initial draft.
 
-## Author: Hugo Remington
-## License: MIT
+# Attribution & License
+
+Author: Hugo Remington
+License: MIT
