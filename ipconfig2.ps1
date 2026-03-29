@@ -1,6 +1,6 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "0.4.0.3"
+$version = "0.4.0.4"
 $date = "29-Mar-2026"
 
 # Splash screen
@@ -371,12 +371,12 @@ try { # v0.3.0.0 try/catch block for exception handling.
             
             # Get Autoconfiguration APIPA
             try {
-                $autoConfigurationBinding = Get-NetIPAddress -InterfaceAlias $adapter.Name -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -like "169.254.*" }
-                If ($autoConfigurationBinding) {
-                    $autoConfigurationEnabled = "Enabled"
+                $autoConfigurationBinding = netsh interface ipv4 show interface $adapter.InterfaceIndex | Select-String "DAD Transmits" | ForEach-Object { ($_ -split ":")[1].Trim() }
+                If ($autoConfigurationBinding -eq 0) {
+                    $autoConfigurationEnabled = "Disabled"
                 }
                 else { 
-                    $autoConfigurationEnabled = "Disabled" 
+                    $autoConfigurationEnabled = "Enabled" 
                 }
             } catch {
             }
