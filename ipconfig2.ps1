@@ -1,6 +1,6 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "0.4.0.5"
+$version = "0.4.0.6"
 $date = "30-Mar-2026"
 
 # Splash screen
@@ -27,21 +27,132 @@ function Convert-PrefixToSubnetMask {
     return ($octets -join ".")
 }
 
-# v0.4.0.2 Master function for parallel processing.
+# v0.4.0.6 Optimised MAIN removed nested jobs/threads. Using return arrays for performance.
 function Get-AllSystemInfo {
-    # Start both functions as separate jobs
-    $job1 = Start-Job -ScriptBlock {
-        # Get-Isp function definition
+
+    function Get-Isp {
+        $ispJob1 = Start-Job -ScriptBlock {
+            try {
+                Invoke-RestMethod "http://ip-api.com/json/" -ErrorAction Stop
+            }
+            catch {
+                $null
+            }
+        }
+
+        $ispJob2 = Start-Job -ScriptBlock {
+            try {
+                Invoke-RestMethod "https://ipinfo.io/json" -ErrorAction Stop
+            }
+            catch {
+                $null
+            }
+        }
+
+        # Wait up to 10 seconds for both
+        Wait-Job -Job $ispJob1, $ispJob2 -Timeout 10 | Out-Null
+
+        $ispApi1 = $null
+        $ispApi2 = $null
+
+        try { $ispApi1 = Receive-Job -Job $ispJob1 -ErrorAction SilentlyContinue } catch {}
+        try { $ispApi2 = Receive-Job -Job $ispJob2 -ErrorAction SilentlyContinue } catch {}
+
+        Remove-Job -Job $ispJob1, $ispJob2 -Force -ErrorAction SilentlyContinue
+
+        if (-not $ispApi1 -and -not $ispApi2) {
+            return $null
+        }
+
+        return [PSCustomObject]@{
+            # ISP variables (primarily from ip-api)
+            IspIP       = if ($ispApi1.query)    { $ispApi1.query }    elseif ($ispApi2.ip) { $ispApi2.ip } else { $null }
+            IspName     = if ($ispApi1.isp)      { $ispApi1.isp }      else { $null }
+            IspOrg      = if ($ispApi1.org)      { $ispApi1.org }      elseif ($ispApi2.org) { $ispApi2.org } else { $null }
+            IspCity     = if ($ispApi1.city)     { $ispApi1.city }     elseif ($ispApi2.city) { $ispApi2.city } else { $null }
+            IspCountry  = if ($ispApi1.country)  { $ispApi1.country }  elseif ($ispApi2.country) { $ispApi2.country } else { $null }
+
+            # DNS / public resolver / geolocation style data (primarily from ipinfo)
+            DnsIP       = if ($ispApi2.ip)       { $ispApi2.ip }       else { $null }
+            DnsCity     = if ($ispApi2.city)     { $ispApi2.city }     else { $null }
+            DnsRegion   = if ($ispApi2.region)   { $ispApi2.region }   else { $null }
+            DnsCountry  = if ($ispApi2.country)  { $ispApi2.country }  else { $null }
+            DnsLoc      = if ($ispApi2.loc)      { $ispApi2.loc }      else { $null }
+            DnsOrg      = if ($ispApi2.org)      { $ispApi2.org }      else { $null }
+            DnsPostal   = if ($ispApi2.postal)   { $ispApi2.postal }   else { $null }
+            DnsTimezone = if ($ispApi2.timezone) { $ispApi2.timezone } else { $null }
+        }
+    }
+
+    function Get-Metadata {
+        $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
+
+        $hostname = [System.Environment]::MachineName
+
+        $netProfileName = $null
+        try {
+            $netProfileName = (Get-NetIPConfiguration -ErrorAction SilentlyContinue).NetProfile.Name
+            if ($netProfileName -is [array]) {
+                $netProfileName = $netProfileName | Select-Object -First 1
+            }
+        } catch {}
+
+        $ipRoutingEnabled = "No"
+        try {
+            $ipRoutingValue = Get-ItemProperty -Path $registryPath -Name "IPEnableRouter" -ErrorAction SilentlyContinue |
+                Select-Object -ExpandProperty IPEnableRouter -ErrorAction SilentlyContinue
+            if ($ipRoutingValue -eq 1) {
+                $ipRoutingEnabled = "Yes"
+            }
+        } catch {}
+
+        $winsProxyEnabled = "No"
+        try {
+            $winsProxyValue = Get-ItemProperty -Path $registryPath -Name "EnableProxy" -ErrorAction SilentlyContinue |
+                Select-Object -ExpandProperty EnableProxy -ErrorAction SilentlyContinue
+            if ($winsProxyValue -eq 1) {
+                $winsProxyEnabled = "Yes"
+            }
+        } catch {}
+
+        $primaryDnsSuffix = $null
+        try {
+            $primaryDnsSuffix = Get-ItemProperty -Path $registryPath -Name "Domain" -ErrorAction SilentlyContinue |
+                Select-Object -ExpandProperty Domain -ErrorAction SilentlyContinue
+        } catch {}
+
+        $dnsSuffixSearchList = $null
+        try {
+            $searchList = Get-ItemProperty -Path $registryPath -Name "SearchList" -ErrorAction SilentlyContinue |
+                Select-Object -ExpandProperty SearchList -ErrorAction SilentlyContinue
+
+            if ($searchList -is [array]) {
+                $dnsSuffixSearchList = $searchList -join ", "
+            }
+            elseif ($searchList) {
+                $dnsSuffixSearchList = $searchList
+            }
+        } catch {}
+
+        return [PSCustomObject]@{
+            Hostname             = $hostname
+            primaryDnsSuffix     = $primaryDnsSuffix
+            NetProfileName       = $netProfileName
+            IPRoutingEnabled     = $ipRoutingEnabled
+            WINSProxyEnabled     = $winsProxyEnabled
+            DNSSuffixSearchList  = $dnsSuffixSearchList
+        }
+    }
+
+    # Only parallelise the expensive external call path
+    $ispJob = Start-Job -ScriptBlock {
         function Get-Isp {
-            # v0.4.0.0 Parallel REST methods for public IP.
-            # Start jobs for both commands
             $ispJob1 = Start-Job -ScriptBlock {
                 try {
                     Invoke-RestMethod "http://ip-api.com/json/" -ErrorAction Stop
                 }
                 catch {
-                    #Write-Error "Failed to get ip-api.com data: $($_.Exception.Message)"
-                    #$null
+                    $null
                 }
             }
 
@@ -50,161 +161,61 @@ function Get-AllSystemInfo {
                     Invoke-RestMethod "https://ipinfo.io/json" -ErrorAction Stop
                 }
                 catch {
-                    #Write-Error "Failed to get ipinfo.io data: $($_.Exception.Message)"
-                    #$null
+                    $null
                 }
             }
 
-            # Wait for both jobs to complete
-            Wait-Job -Job $ispJob1, $ispJob2 | Out-Null
+            Wait-Job -Job $ispJob1, $ispJob2 -Timeout 10 | Out-Null
 
-            # Get results
-            $Isp = Receive-Job -Job $ispJob1
-            $MyIspDNSInfo = Receive-Job -Job $ispJob2
-            # Clean up jobs
-            Remove-Job -Job $ispJob1, $ispJob2
-            # Finish Jobs.
+            $ispApi1 = $null
+            $ispApi2 = $null
 
-            if ($Isp) {
-                return [PSCustomObject]@{
-                    # ISP variables
-                    IspIP = $Isp.query
-                    IspName = $Isp.isp
-                    IspOrg = $Isp.org
-                    IspCity = $Isp.city
-                    IspCountry = $Isp.country
-                    
-                    # DNS variables
-                    DnsIP = $MyIspDNSInfo.ip
-                    DnsCity = $MyIspDNSInfo.city
-                    DnsRegion = $MyIspDNSInfo.region
-                    DnsCountry = $MyIspDNSInfo.country
-                    DnsLoc = $MyIspDNSInfo.loc
-                    DnsOrg = $MyIspDNSInfo.org
-                    DnsPostal = $MyIspDNSInfo.postal
-                    DnsTimezone = $MyIspDNSInfo.timezone
-                }
+            try { $ispApi1 = Receive-Job -Job $ispJob1 -ErrorAction SilentlyContinue } catch {}
+            try { $ispApi2 = Receive-Job -Job $ispJob2 -ErrorAction SilentlyContinue } catch {}
+
+            Remove-Job -Job $ispJob1, $ispJob2 -Force -ErrorAction SilentlyContinue
+
+            if (-not $ispApi1 -and -not $ispApi2) {
+                return $null
+            }
+
+            return [PSCustomObject]@{
+                IspIP       = if ($ispApi1.query)    { $ispApi1.query }    elseif ($ispApi2.ip) { $ispApi2.ip } else { $null }
+                IspName     = if ($ispApi1.isp)      { $ispApi1.isp }      else { $null }
+                IspOrg      = if ($ispApi1.org)      { $ispApi1.org }      elseif ($ispApi2.org) { $ispApi2.org } else { $null }
+                IspCity     = if ($ispApi1.city)     { $ispApi1.city }     elseif ($ispApi2.city) { $ispApi2.city } else { $null }
+                IspCountry  = if ($ispApi1.country)  { $ispApi1.country }  elseif ($ispApi2.country) { $ispApi2.country } else { $null }
+
+                DnsIP       = if ($ispApi2.ip)       { $ispApi2.ip }       else { $null }
+                DnsCity     = if ($ispApi2.city)     { $ispApi2.city }     else { $null }
+                DnsRegion   = if ($ispApi2.region)   { $ispApi2.region }   else { $null }
+                DnsCountry  = if ($ispApi2.country)  { $ispApi2.country }  else { $null }
+                DnsLoc      = if ($ispApi2.loc)      { $ispApi2.loc }      else { $null }
+                DnsOrg      = if ($ispApi2.org)      { $ispApi2.org }      else { $null }
+                DnsPostal   = if ($ispApi2.postal)   { $ispApi2.postal }   else { $null }
+                DnsTimezone = if ($ispApi2.timezone) { $ispApi2.timezone } else { $null }
             }
         }
-        
-        # Call the function
+
         Get-Isp
     }
-    
-    $job2 = Start-Job -ScriptBlock {
-        # Get-Metadata function definition
-        function Get-Metadata {
-            $hostname = [System.Environment]::MachineName
-            $systemMetadataRegistryPath = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
 
-            $metaJob1 = Start-Job -ScriptBlock {
-                # Get Net Profile Name
-                $netProfileName = (Get-NetIPConfiguration).NetProfile.Name
-                return $netProfileName
-            }
+    # Run metadata synchronously
+    $metadata = Get-Metadata
 
-            $metaJob2 = Start-Job -ScriptBlock {
-                param($registryPath)
-                $ipRoutingEnabled = $null
-                try {
-                    $ipRoutingValue = Get-ItemProperty -Path $registryPath -Name "IPEnableRouter" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty IPEnableRouter
-                    $ipRoutingEnabled = if ($ipRoutingValue -eq 1) { "Yes" } else { "No" }
-                } catch {
-                    $ipRoutingEnabled = "No"
-                }
-                return $ipRoutingEnabled
-            } -ArgumentList $systemMetadataRegistryPath
+    # Collect ISP result
+    Wait-Job -Job $ispJob -Timeout 12 | Out-Null
 
-            $metaJob3 = Start-Job -ScriptBlock {
-                param($registryPath)
-                $winsProxyEnabled = $null
-                try {
-                    $winsProxyValue = Get-ItemProperty -Path $registryPath -Name "EnableProxy" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty EnableProxy
-                    $winsProxyEnabled = if ($winsProxyValue -eq 1) { "Yes" } else { "No" }
-                } catch {
-                    $winsProxyEnabled = "No"
-                }
-                return $winsProxyEnabled
-            } -ArgumentList $systemMetadataRegistryPath
+    $IspInfo = $null
+    try {
+        $IspInfo = Receive-Job -Job $ispJob -ErrorAction SilentlyContinue
+    } catch {}
 
-            $metaJob4 = Start-Job -ScriptBlock {
-                param($registryPath)
-                # Get Primary DNS Suffix
-                $primaryDnsSuffix = $null
-                try {
-                    $primaryDnsSuffixsearchList = Get-ItemProperty -Path $registryPath -Name "SearchList" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Domain
-                    if ($primaryDnsSuffixsearchList -is [array]) {
-                        $primaryDnsSuffix = $primaryDnsSuffixsearchList -join ", "
-                    } elseif ($primaryDnsSuffixsearchList) {
-                        $primaryDnsSuffix = $primaryDnsSuffixsearchList
-                    } else {
-                        $primaryDnsSuffix = $null
-                    }
-                } catch {
-                }
-                return $primaryDnsSuffix
-            } -ArgumentList $systemMetadataRegistryPath
+    Remove-Job -Job $ispJob -Force -ErrorAction SilentlyContinue
 
-            $metaJob5 = Start-Job -ScriptBlock {
-                param($registryPath)
-                # Get DNS Suffix Search List
-                $dnsSuffixSearchList = $null
-                try {
-                    $searchList = Get-ItemProperty -Path $registryPath -Name "SearchList" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty SearchList
-                    if ($searchList -is [array]) {
-                        $dnsSuffixSearchList = $searchList -join ", "
-                    } elseif ($searchList) {
-                        $dnsSuffixSearchList = $searchList
-                    } else {
-                        $dnsSuffixSearchList = $null
-                    }
-                } catch {
-                }
-                return $dnsSuffixSearchList
-            } -ArgumentList $systemMetadataRegistryPath
-
-            # Wait for all jobs to complete
-            Wait-Job -Job $metaJob1, $metaJob2, $metaJob3, $metaJob4, $metaJob5 | Out-Null
-
-            # Get results
-            $netProfileName = Receive-Job -Job $metaJob1
-            $ipRoutingEnabled = Receive-Job -Job $metaJob2
-            $winsProxyEnabled = Receive-Job -Job $metaJob3
-            $primaryDnsSuffix = Receive-Job -Job $metaJob4
-            $dnsSuffixSearchList = Receive-Job -Job $metaJob5
-
-            # Clean up jobs
-            Remove-Job -Job $metaJob1, $metaJob2, $metaJob3, $metaJob4, $metaJob5
-
-            # Return all metadata as a custom object
-            return [PSCustomObject]@{
-                Hostname = $hostname
-                primaryDnsSuffix = $primaryDnsSuffix
-                NetProfileName = $netProfileName
-                IPRoutingEnabled = $ipRoutingEnabled
-                WINSProxyEnabled = $winsProxyEnabled
-                DNSSuffixSearchList = $dnsSuffixSearchList
-            }
-        }
-        
-        # Call the function
-        Get-Metadata
-    }
-    
-    # Wait for both jobs to complete
-    Wait-Job -Job $job1, $job2 | Out-Null
-    
-    # Get results
-    $IspInfo = Receive-Job -Job $job1
-    $metadata = Receive-Job -Job $job2
-    
-    # Clean up jobs
-    Remove-Job -Job $job1, $job2
-    
-    # Return both results
     return @{
         Metadata = $metadata
-        IspInfo = $IspInfo
+        IspInfo  = $IspInfo
     }
 }
 

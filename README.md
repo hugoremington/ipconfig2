@@ -88,7 +88,7 @@ It is still experimental, some features may or may not work depending on your en
 ## Performance Notes
 
 - PowerShell (`.ps1`) execution: ~3–5 seconds  
-- Compiled executable (`PS2EXE`): ~8–15 seconds  
+- Compiled executable (`PS2EXE`): ~5–10 seconds  
 
 Runtime depends on:
 - External API response time (public IP / DNS)
@@ -110,6 +110,8 @@ ipconfig2 [/version]
 
 ## Changelog
 
+### 0.4.0.6 - 30-Mar-2026
+* Significant performance boost by tweaking MAIN Get-AllSystemInfo function omitting nested jobs/threads. Using return arrays over vars.
 ### 0.4.0.5 - 30-Mar-2026
 * Fixed $dhcpEnabledV4 semantics for Yes/No after logic if/else checks for consistency.
 * Small performance tweaks by omitting redundant netsh commands and using $netshQuery instead.
