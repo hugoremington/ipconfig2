@@ -1,7 +1,7 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "0.4.0.4"
-$date = "29-Mar-2026"
+$version = "0.4.0.5"
+$date = "30-Mar-2026"
 
 # Splash screen
 Write-Host ""
@@ -133,7 +133,7 @@ function Get-AllSystemInfo {
                 # Get Primary DNS Suffix
                 $primaryDnsSuffix = $null
                 try {
-                    $primaryDnsSuffixsearchList = Get-ItemProperty -Path $registryPath -Name "Domain" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Domain
+                    $primaryDnsSuffixsearchList = Get-ItemProperty -Path $registryPath -Name "SearchList" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Domain
                     if ($primaryDnsSuffixsearchList -is [array]) {
                         $primaryDnsSuffix = $primaryDnsSuffixsearchList -join ", "
                     } elseif ($primaryDnsSuffixsearchList) {
@@ -216,13 +216,46 @@ function Get-AllSystemInfo {
 try { # v0.3.0.0 try/catch block for exception handling.
     # Create local NIC array.
     $localInfo = @()
+
+    <# Get Network Adapters Query v0.4.0.5 #>
     $networkAdapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object {$_.InterfaceDescription -notmatch "Loopback"}
+
     if ($networkAdapters) {
+        # Build queries for performance v0.4.0.5.
+        $dnsClients = Get-DnsClient -ErrorAction SilentlyContinue
+        # Start default gateway lookup table for performance v0.4.0.5.
+        $gatewayTable = @{}
+        <# START default gateway loop v0.4.0.5#>
+        Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric, InterfaceMetric |
+            ForEach-Object {
+                if (-not $gatewayTable.ContainsKey($_.InterfaceIndex)) {
+                    $gatewayTable[$_.InterfaceIndex] = $_.NextHop
+                }
+            }
+        <# END default gateway loop. #>
+        
+        <# START DNS server lookup table for performance v0.4.0.5#>
+        $dnsServerTable = @{}
+        Get-DnsClientServerAddress -ErrorAction SilentlyContinue | ForEach-Object {
+            $ifIndex = [int]$_.InterfaceIndex
+
+            if (-not $dnsServerTable.ContainsKey($ifIndex)) {
+                $dnsServerTable[$ifIndex] = @()
+            }
+
+            if ($_.ServerAddresses) {
+                $dnsServerTable[$ifIndex] += $_.ServerAddresses
+            }
+        }
+        <# END DNS server lookup table #>
+
+        <# START main adapter foreach loop#>
         foreach ($adapter in $networkAdapters) {
             # Get Connection-specific DNS suffix
             $dnsSuffix = $null
             try {
-                $dnsClient = Get-DnsClient -InterfaceIndex $adapter.InterfaceIndex -ErrorAction SilentlyContinue
+                # Match DNS client by InterfaceIndex
+                $dnsClient = $dnsClients | Where-Object { $_.InterfaceIndex -eq $adapter.InterfaceIndex }
                 if ($dnsClient) {
                     $dnsSuffix = $dnsClient.ConnectionSpecificSuffix
                 }
@@ -233,20 +266,23 @@ try { # v0.3.0.0 try/catch block for exception handling.
             # Get Default Gateway for this specific interface
             $gateway = $null
             try {
-                $gateway = (Get-NetRoute -InterfaceIndex $adapter.InterfaceIndex -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue | Select-Object -First 1).NextHop
+                if ($gatewayTable.ContainsKey($adapter.InterfaceIndex)) {
+                    $gateway = $gatewayTable[$adapter.InterfaceIndex]
+                }
             } catch {
                 # If we can't get gateway, leave it null
             }
             
             # Get DNS Servers for this specific interface
             $dnsServers = $null
-            try {
-                $dnsServerAddresses = Get-DnsClientServerAddress -InterfaceIndex $adapter.InterfaceIndex -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ServerAddresses
-                if ($dnsServerAddresses) {
-                    $dnsServers = ($dnsServerAddresses | Select-Object -Unique) -join ', '
-                }
-            } catch {
-                # If we can't get DNS servers, leave it null
+            $dnsServerAddresses = $null
+
+            if ($dnsServerTable.ContainsKey([int]$adapter.InterfaceIndex)) {
+                $dnsServerAddresses = $dnsServerTable[[int]$adapter.InterfaceIndex]
+            }
+
+            if ($dnsServerAddresses) {
+                $dnsServers = ($dnsServerAddresses | Select-Object -Unique) -join ', '
             }
             
             # Get Wifi magic.
@@ -255,8 +291,10 @@ try { # v0.3.0.0 try/catch block for exception handling.
             If ($PhysicalMediaType -like "*802.11*")
             {
                 try {
+                    # 0.4.0.5 netshQuery performance optimisation.
+                    $netshQuery1 = netsh wlan show profiles
                     # Get all profiles
-                    $allProfiles = netsh wlan show profiles | Select-String "All User Profile" | ForEach-Object { ($_ -split ":")[1].Trim() }
+                    $allProfiles = $netshQuery1 | Select-String "All User Profile" | ForEach-Object { ($_ -split ":")[1].Trim() }
                     
                     if ($allProfiles) {
                         # Find the profile that contains your partial name
@@ -270,13 +308,15 @@ try { # v0.3.0.0 try/catch block for exception handling.
                         if ($matchingProfile) {
                             $actualProfileName = $matchingProfile
                             
+                            # 0.4.0.5 netshQuery performance optimisation.
+                            $netshQuery2 = netsh wlan show profiles name="$actualProfileName" key=clear
                             # Get SSID
-                            $ssidInfo = netsh wlan show profiles name="$actualProfileName" key=clear | Select-String "SSID name"
+                            $ssidInfo = $netshQuery2 | Select-String "SSID name"
                             if ($ssidInfo) {
                                 $wifiSsid = ($ssidInfo -split ":")[1].Trim()
                                 $wifiSsid = ($wifiSsid).Trim('"')
                             }
-                            $wifiKeyInfo = netsh wlan show profiles name="$actualProfileName" key=clear | Select-String "Key Content"
+                            $wifiKeyInfo = $netshQuery2 | Select-String "Key Content"
                             if ($wifiKeyInfo) {
                                 $wifiKey = ($wifiKeyInfo -split ":")[1].Trim()
                             }
@@ -288,7 +328,7 @@ try { # v0.3.0.0 try/catch block for exception handling.
             }
 
 
-            # Get DHCP information from registry for this interface
+            # Garbage clean up.
             $dhcpEnabledV4 = $false
             $dhcpEnabledV6 = $false
             $dhcpServerV4 = $null
@@ -304,7 +344,9 @@ try { # v0.3.0.0 try/catch block for exception handling.
             $GetAllStats = $null
             $ReceivedBytes = $null
             $SentBytes = $null
+            $netbiosBinding = $null
             
+            <# START DHCP TABLE #>
             try {
                 # Get DHCP server from registry using interface GUID
                 $interfaceGuid = $adapter.InterfaceGuid
@@ -318,7 +360,7 @@ try { # v0.3.0.0 try/catch block for exception handling.
                 if ($registryItemV4) {
                     if ($registryItemV4.EnableDHCP -eq 1) {
                         $dhcpEnabledV4 = "Yes"
-                    }
+                    } else{ $dhcpEnabledV4 = "No" }
                     if ($registryItemV4.DhcpServer) {
                         $dhcpServerV4 = $registryItemV4.DhcpServer
                     }
@@ -346,9 +388,8 @@ try { # v0.3.0.0 try/catch block for exception handling.
                         $dhcpv6State = $registryItemV6.Dhcpv6State
                     }
                     if ($registryItemV6.EnableDHCP -eq 1) {
-                        $dhcpEnabledV6 = $registryItemV6.EnableDHCP
                         $dhcpEnabledV6 = "Yes"
-                    }
+                    } else { $dhcpEnabledV6 = "No" }
                     if ($registryItemV6.Dhcpv6Server) {
                         $dhcpServerV6 = $registryItemV6.Dhcpv6Server
                     }
@@ -368,8 +409,9 @@ try { # v0.3.0.0 try/catch block for exception handling.
             } catch {
                 # If we can't get registry info, keep defaults
             }
-            
-            # Get Autoconfiguration APIPA
+            <# END DHCP TABLE #>
+
+            <# START Get Autoconfiguration APIPA #>
             try {
                 $autoConfigurationBinding = netsh interface ipv4 show interface $adapter.InterfaceIndex | Select-String "DAD Transmits" | ForEach-Object { ($_ -split ":")[1].Trim() }
                 If ($autoConfigurationBinding -eq 0) {
@@ -380,7 +422,8 @@ try { # v0.3.0.0 try/catch block for exception handling.
                 }
             } catch {
             }
-            
+            <# END Get Autoconfiguration APIPA #>
+
             # Get NetBIOS over TCP/IP setting
             try {
                 # Get NetBIOS over TCP/IP setting using Get-NetAdapterBinding
@@ -412,7 +455,7 @@ try { # v0.3.0.0 try/catch block for exception handling.
             # v0.3.1.2 Get All IPs performance fix
             $getAllIpAddresses = Get-NetIPAddress -InterfaceIndex $adapter.InterfaceIndex -ErrorAction SilentlyContinue
             # Get IPv4 addresses
-            $ipv4Addresses = $getAllIpAddresses | Where-Object {$_.IPAddress -notmatch "^169\.254" -and $_.PrefixLength -ne 0 -and $_.AddressFamily -eq "IPv4"}
+            $ipv4Addresses = $getAllIpAddresses | Where-Object {$_.AddressFamily -eq "IPv4"}
             foreach ($ip in $ipv4Addresses) {
                 # Convert prefix length to subnet mask using a simpler approach
                 $subnetMask = Convert-PrefixToSubnetMask -PrefixLength $ip.PrefixLength
@@ -451,7 +494,7 @@ try { # v0.3.0.0 try/catch block for exception handling.
             }
             
             # Get IPv6 addresses
-            $ipv6Addresses = $getAllIpAddresses | Where-Object {$_.IPAddress -notmatch "^::1" -and $_.PrefixLength -ne 0 -and $_.AddressFamily -eq "IPv6"}
+            $ipv6Addresses = $getAllIpAddresses | Where-Object {$_.AddressFamily -eq "IPv6"}
             foreach ($ip in $ipv6Addresses) {
                 $localInfo += [PSCustomObject]@{
                     MediaConnectionState = $adapter.MediaConnectionState
@@ -577,8 +620,6 @@ foreach ($group in $groupedInfo) {
                 Write-Host "   Link-local IPv6 Address . . . . . : $($ipv6Addresses.IPAddress -join ', ')" -ForegroundColor Yellow
             }
             If ($info.MediaConnectionState -eq "Disconnected") {
-                #Write-Host "   Description . . . . . . . . . . . : $($info.InterfaceDescription)" -ForegroundColor Yellow
-                Write-Host "   Connection-specific DNS Suffix  . : $($firstIPv4.DnsSuffix)" -ForegroundColor Yellow
                 Write-Host "   Media Type. . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
                 Write-Host "   Link Speed. . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
             }
@@ -601,20 +642,20 @@ foreach ($group in $groupedInfo) {
                 Write-Host "   Physical Address. . . . . . . . . : $($info.MacAddress)" -ForegroundColor Yellow
                 Write-Host "   DHCPv4 Enabled. . . . . . . . . . : $($info.DhcpEnabledV4)" -ForegroundColor Yellow
                 # Display DHCP variables only if DHCP is enabled
-                if ($info.DhcpEnabledV4) {
+                if ($info.DhcpEnabledV4 -eq "Yes") {
                     # Write-Host "   DHCPv4 Enabled. . . . . . . . . . : $($info.DhcpEnabledV4)" -ForegroundColor Yellow
                     Write-Host "   DHCPv4 Server . . . . . . . . . . : $($info.DhcpServerV4)" -ForegroundColor Yellow
                     Write-Host "   Lease Obtained. . . . . . . . . . : $($info.dhcpLeaseObtainedTimeV4)" -ForegroundColor Yellow
                     Write-Host "   Lease Expires . . . . . . . . . . : $($info.dhcpLeaseTerminatesTimeV4)" -ForegroundColor Yellow
-                    if ($info.DhcpEnabledV6) {
-                        Write-Host "   DHCPv6 Enabled. . . . . . . . . . : $($info.DhcpEnabledV6)" -ForegroundColor Yellow
-                        Write-Host "   DHCPv6 IAID . . . . . . . . . . . : $($info.Dhcpv6Iaid)" -ForegroundColor Yellow
-                        Write-Host "   DHCPv6 Client DUID. . . . . . . . : $($info.Dhcpv6Duid)" -ForegroundColor Yellow
-                        if ($info.dhcpLeaseObtainedTimeV6)
-                        {
-                            Write-Host "   Leasev6 Obtained. . . . . . . . . : $($info.dhcpLeaseObtainedTimeV6)" -ForegroundColor Yellow
-                            Write-Host "   Leasev6 Expires . . . . . . . . . : $($info.dhcpLeaseTerminatesTimeV6)" -ForegroundColor Yellow
-                        }
+                    }
+                if ($info.DhcpEnabledV6 -eq "Yes") {
+                    Write-Host "   DHCPv6 Enabled. . . . . . . . . . : $($info.DhcpEnabledV6)" -ForegroundColor Yellow
+                    Write-Host "   DHCPv6 IAID . . . . . . . . . . . : $($info.Dhcpv6Iaid)" -ForegroundColor Yellow
+                    Write-Host "   DHCPv6 Client DUID. . . . . . . . : $($info.Dhcpv6Duid)" -ForegroundColor Yellow
+                    if ($info.dhcpLeaseObtainedTimeV6)
+                    {
+                        Write-Host "   Leasev6 Obtained. . . . . . . . . : $($info.dhcpLeaseObtainedTimeV6)" -ForegroundColor Yellow
+                        Write-Host "   Leasev6 Expires . . . . . . . . . : $($info.dhcpLeaseTerminatesTimeV6)" -ForegroundColor Yellow
                     }
                 }
             }
@@ -636,9 +677,7 @@ foreach ($group in $groupedInfo) {
                 Write-Host "   Link Speed. . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
             }
             Elseif($info.MediaConnectionState -eq "Connected") {
-                #Write-Host "   Description . . . . . . . . . . . : $($info.InterfaceDescription)" -ForegroundColor Yellow
                 Write-Host "   Link-local IPv6 Address . . . . . : $($info.IPAddress)" -ForegroundColor Yellow
-                #Write-Host "   Media State . . . . . . . . . . . : $($info.MediaConnectionState)" -ForegroundColor Yellow
                 Write-Host "   Media Type. . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
                 If ($info.PhysicalMediaType -like "*802.11*")
                 {
@@ -655,19 +694,19 @@ foreach ($group in $groupedInfo) {
                 Write-Host "   Physical Address. . . . . . . . . : $($info.MacAddress)" -ForegroundColor Yellow
                 Write-Host "   DHCPv4 Enabled. . . . . . . . . . . : $($info.DhcpEnabledV4)" -ForegroundColor Yellow
                 # Display DHCP variables only if DHCP is enabled
-                if ($info.DhcpEnabledV4) {
+                if ($info.DhcpEnabledV4 -eq "Yes") {
                     Write-Host "   DHCPv4 Server . . . . . . . . . . . : $($info.DhcpServerV4)" -ForegroundColor Yellow
                     Write-Host "   Lease Obtained. . . . . . . . . . . : $($info.dhcpLeaseObtainedTimeV4)" -ForegroundColor Yellow
                     Write-Host "   Lease Expires . . . . . . . . . . . : $($info.dhcpLeaseTerminatesTimev4)" -ForegroundColor Yellow
-                    if ($info.DhcpEnabledV6) {
-                        Write-Host "   DHCPv6 Enabled. . . . . . . . . . : $($info.DhcpEnabledV6)" -ForegroundColor Yellow
-                        Write-Host "   DHCPv6 IAID . . . . . . . . . . . : $($info.Dhcpv6Iaid)" -ForegroundColor Yellow
-                        Write-Host "   DHCPv6 Client DUID. . . . . . . . : $($info.Dhcpv6Duid)" -ForegroundColor Yellow
-                        if ($info.dhcpLeaseObtainedTimeV6)
-                        {
-                            Write-Host "   Leasev6 Obtained. . . . . . . . . : $($info.dhcpLeaseObtainedTimeV6)" -ForegroundColor Yellow
-                            Write-Host "   Leasev6 Expires . . . . . . . . . : $($info.dhcpLeaseTerminatesTimeV6)" -ForegroundColor Yellow
-                        }
+                }
+                if ($info.DhcpEnabledV6 -eq "Yes") {
+                    Write-Host "   DHCPv6 Enabled. . . . . . . . . . : $($info.DhcpEnabledV6)" -ForegroundColor Yellow
+                    Write-Host "   DHCPv6 IAID . . . . . . . . . . . : $($info.Dhcpv6Iaid)" -ForegroundColor Yellow
+                    Write-Host "   DHCPv6 Client DUID. . . . . . . . : $($info.Dhcpv6Duid)" -ForegroundColor Yellow
+                    if ($info.dhcpLeaseObtainedTimeV6)
+                    {
+                        Write-Host "   Leasev6 Obtained. . . . . . . . . : $($info.dhcpLeaseObtainedTimeV6)" -ForegroundColor Yellow
+                        Write-Host "   Leasev6 Expires . . . . . . . . . : $($info.dhcpLeaseTerminatesTimeV6)" -ForegroundColor Yellow
                     }
                 }
             }

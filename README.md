@@ -112,22 +112,31 @@ ipconfig2 [/version]
 
 ## Changelog
 
-### 0.4.0.4
+### 0.4.0.5 - 30-Mar-2026
+* Fixed $dhcpEnabledV4 semantics for Yes/No after logic if/else checks for consistency.
+* Small performance tweaks by omitting redundant netsh commands and using $netshQuery instead.
+* Enabled experimental reporting of additional NICs/IPs by omitting "$_.IPAddress -notmatch "^169\.254" -and $_.PrefixLength -ne 0 -and" from $ipv4Addresses and $ipv6Addresses vars.
+* Testing and validation of DHCPv6Enabled status. Verified accuracy.
+* Fixed redundant IPv6 Link row output.
+* Performance optimisation, moved $networkAdapters, $dnsClients, Get-NetRoute, Get-DnsClientServerAddress outside of foreach loop, improving data collection.
+* Fixed DNS Suffix Search List registry reference.
+* Fixed DHCPv4 & DHCPv6 output tables and conditional output.
+### 0.4.0.4 - 29-Mar-2026
 * Fixed $autoConfigurationBinding now reporting correctly thanks to netsh DAD Transmits data point.
-### 0.4.0.3
+### 0.4.0.3 - 29-Mar-2026
 * Fixed missing variable $firstIPv6.
 * Fixed netbios binding via $netbiosEnabled = if ($netbiosEnabled -eq $True) { "Enabled" } else { "Disabled" }.
 * Minor bug fix with $autoConfigurationBinding = Get-NetIPAddress.
-### 0.4.0.2
+### 0.4.0.2 - 29-Mar-2026
 * Implemented new master function called Get-AllSystemInfo which combines System Metadata, Public IP and Public DNS calls for parallel processing using jobs/threads. Performance improvement.
 * Omitted former independant functions Get-Isp and Get-Metadata.
-### 0.4.0.1
+### 0.4.0.1 - 29-Mar-2026
 * Implemented new function Get-Isp and function call for modular approach.
 * Implemented new function Get-Metadata and function call for modular approach.
 * Performance improvement by incorporating start-jobs in Get-Isp and Get-Metadata.
 * Fixed Primary Dns Suffix data.
 * Fixed Dns Suffix Search List data.
-### 0.4.0.0
+### 0.4.0.0 - 29-Mar-2026
 * Fixed NetBIOS reporting.
 * New feature Bluetooth adapter reporting.
 * New compact ico for compile release.
@@ -136,12 +145,12 @@ ipconfig2 [/version]
 * Performance improvement by using multi-threaded jobs for tandem REST calls.
 * Garbage cleanup optimisation.
 * Code clean up.
-### 0.3.1.6
+### 0.3.1.6 - 28-Mar-2026
 * New feature WiFi SSID output thanks to netsh profile match.
 * New feature WiFi Key thanks to netsh profile match with key=clear.
 * WiFi SSID and Keys now only reporting for matching 802.11 wifi adapters only, with if/else checks.
 * Formatting tweaks, made NIC Description at top of each interface output.
-### 0.3.1.5
+### 0.3.1.5 - 28-Mar-2026
 * New feature system metadata top section including host name, primary dns suffix, net profile name, ip routing, wins prox and dns suffix search list.
 * New feature DHCP reporting including v4/v6, status, server, lease, IAID and Client DUID.
 * Resolved DUID binary to hex issue.
@@ -149,20 +158,20 @@ ipconfig2 [/version]
 * DHCP v4 and v6 lease durations now available in readable date format, converted from unix time.
 * Additional bugfixes.
 * To do: Add node type into system metadata section.
-### 0.3.1.4
+### 0.3.1.4 - 28-Mar-2026
 * Added link speed feature.
 * Added Media State feature.
 * Added if/else checks if media state is down then report succinctly.
-### 0.3.1.3
+### 0.3.1.3 - 28-Mar-2026
 * Omitted $publicIP to remove redundancy and improve performance.
-### 0.3.1.2
+### 0.3.1.2 - 28-Mar-2026
 * Code optimisation and performance improvement for $getAllIpAddresses = Get-NetIPAddress now executing once.
 * IPv6 now displays below Connection-specific DNS Suffix.
 * Resolved $MyIspDNSInfo nested variable.
-### 0.3.1.1
+### 0.3.1.1 - 28-Mar-2026
 * Resolved bug No MSFT_DNSClient objects found with property 'InterfaceIndex' equal to 'X'. Verify the value of the property and retry.
 * Fixed local DNS duplication.
-### 0.3.0.0
+### 0.3.0.0 - 28-Mar-2026
 * Now checks Internet connectivity using $noInternet flag thanks to try/catch blocks on Invoke-RestMethod calls.
 * Public IP Address and Public DNS Server reports will not output if $noInternet -eq $true.
 * Optimised code by omitting redundant API calls and replacing with objects instead. Drastically improved performance.
@@ -171,12 +180,12 @@ ipconfig2 [/version]
 * Improved stability with additional try/catch blocks.
 * New feature: local NIC DNS Suffix and MAC Address.
 * Formatting and tweaks.
-### 0.2.0.0
+### 0.2.0.0 - 28-Mar-2026
 * Now working public DNS server feature using REST API call.
 * Includes DNS server locale.
 * Appended public IP locale.
 * Got subnet mask output working.
-### 0.1.0.0
+### 0.1.0.0 - 28-Mar-2026
 * Got public IP address working.
 * Initial draft.
 
