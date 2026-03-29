@@ -12,7 +12,9 @@ The tool provides a consolidated, human-readable snapshot of a system’s curren
 
 IPConfig2 was originally created as a simple one-liner utility to retrieve a machine’s public IP address. It has since evolved into a more feature-rich diagnostic tool that provides deeper visibility into both local and external network configuration.
 
-The application is lightweight, runs entirely in the command line, and can be executed as either a PowerShell script or compiled executable.
+The application is lightweight, runs entirely in the command line (CLI), and can be executed as either a PowerShell script or compiled executable.
+
+It is still experimental, some features may or may not work depending on your environment. Use it with care.
 
 ---
 
