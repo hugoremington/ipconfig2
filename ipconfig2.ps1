@@ -38,7 +38,6 @@ function Get-AllSystemInfo {
             $ispJob1 = Start-Job -ScriptBlock {
                 try {
                     Invoke-RestMethod "http://ip-api.com/json/" -ErrorAction Stop
-                    #noInternet flag.
                 }
                 catch {
                     #Write-Error "Failed to get ip-api.com data: $($_.Exception.Message)"
@@ -545,10 +544,9 @@ $allInfo = Get-AllSystemInfo
 
 # v0.4.0.1 new Get-Metadata function.
 $metadata = $allInfo.Metadata
-#$metadata = Get-Metadata
 
 <# DISPLAY OUTPUT START #>
-# Space
+# Line space
 Write-Host ""
 Write-Host "   Host Name . . . . . . . . . . . . : $($metadata.Hostname)" -ForegroundColor Yellow
 Write-Host "   Primary Dns Suffix  . . . . . . . : $($metadata.primaryDnsSuffix)" -ForegroundColor Yellow
@@ -559,7 +557,6 @@ Write-Host "   DNS Suffix Search List. . . . . . : $($metadata.DNSSuffixSearchLi
 Write-Host ""
 
 # v0.4.0.1 new Get-ISP Function
-#$IspInfo = Get-Isp
 $IspInfo = $allInfo.IspInfo
 
 # v0.3.0.0 logic checks
@@ -624,7 +621,6 @@ foreach ($group in $groupedInfo) {
                 Write-Host "   Link Speed. . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
             }
             Elseif($info.MediaConnectionState -eq "Connected") {
-                #Write-Host "   Description . . . . . . . . . . . : $($info.InterfaceDescription)" -ForegroundColor Yellow
                 Write-Host "   Media Type. . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
                 If ($info.PhysicalMediaType -like "*802.11*")
                 {
@@ -643,7 +639,6 @@ foreach ($group in $groupedInfo) {
                 Write-Host "   DHCPv4 Enabled. . . . . . . . . . : $($info.DhcpEnabledV4)" -ForegroundColor Yellow
                 # Display DHCP variables only if DHCP is enabled
                 if ($info.DhcpEnabledV4 -eq "Yes") {
-                    # Write-Host "   DHCPv4 Enabled. . . . . . . . . . : $($info.DhcpEnabledV4)" -ForegroundColor Yellow
                     Write-Host "   DHCPv4 Server . . . . . . . . . . : $($info.DhcpServerV4)" -ForegroundColor Yellow
                     Write-Host "   Lease Obtained. . . . . . . . . . : $($info.dhcpLeaseObtainedTimeV4)" -ForegroundColor Yellow
                     Write-Host "   Lease Expires . . . . . . . . . . : $($info.dhcpLeaseTerminatesTimeV4)" -ForegroundColor Yellow
@@ -667,7 +662,6 @@ foreach ($group in $groupedInfo) {
     # Display IPv6 addresses (if any)
     if ($ipv6Addresses -and !$ipv4Addresses) {
         $firstIPv6 = $ipv6Addresses | Select-Object -First 1
-        # Only show IPv6 addresses if there are no IPv4 addresses
         foreach ($info in $ipv6Addresses) {
             Write-Host "   Description . . . . . . . . . . . : $($info.InterfaceDescription)" -ForegroundColor Yellow
             Write-Host "   Media State . . . . . . . . . . . : $($info.MediaConnectionState)" -ForegroundColor Yellow
@@ -717,7 +711,6 @@ foreach ($group in $groupedInfo) {
     
     Write-Host ""
 }
-
-# Space
+# Line space
 Write-Host ""
 <# DISPLAY OUTPUT END #>
