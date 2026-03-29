@@ -94,7 +94,7 @@ IPConfig2 prioritises **depth of information over raw execution speed**, providi
 ## Usage
 
 ### Run as PowerShell Script
-.\ipconfig2.ps1
+ipconfig2.exe or .\ipconfig2.ps1
 
 ## Changelog
 
@@ -167,4 +167,5 @@ IPConfig2 prioritises **depth of information over raw execution speed**, providi
 # Attribution & License
 
 Author: Hugo Remington
+
 License: MIT
