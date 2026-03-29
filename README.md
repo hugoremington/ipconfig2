@@ -94,7 +94,6 @@ IPConfig2 prioritises **depth of information over raw execution speed**, providi
 ## Usage
 
 ### Run as PowerShell Script
-```powershell
 .\ipconfig2.ps1
 
 ## Changelog
@@ -162,8 +161,8 @@ IPConfig2 prioritises **depth of information over raw execution speed**, providi
 * Appended public IP locale.
 * Got subnet mask output working.
 ### 0.1.0.0
+* Got public IP address working.
+* Initial draft.
 
 ## Author: Hugo Remington
 ## License: MIT
-* Got public IP address working.
-* Initial draft.
