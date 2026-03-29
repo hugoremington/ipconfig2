@@ -1,6 +1,5 @@
 # IPConfig2
-# Author: Hugo Remington
-# License: MIT
+
 IPConfig2 is an enhanced Windows network configuration utility built in PowerShell.
 
 It extends the native `ipconfig` command by combining **local network adapter data** with **public IP, ISP, and DNS context** into a single CLI output.
@@ -163,5 +162,8 @@ IPConfig2 prioritises **depth of information over raw execution speed**, providi
 * Appended public IP locale.
 * Got subnet mask output working.
 ### 0.1.0.0
+
+## Author: Hugo Remington
+## License: MIT
 * Got public IP address working.
 * Initial draft.
