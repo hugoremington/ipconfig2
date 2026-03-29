@@ -31,9 +31,9 @@ It is still experimental, some features may or may not work depending on your en
 ### Public Network Information
 - Public IPv4 Address (via external REST API)
 - ISP Name and Organisation
-- ISP Location (City / Country)
+- ISP Location (Geolocation)
 - Public DNS Server
-- Public DNS Location (City / Region / Country)
+- Public DNS Location (Geolocation)
 - DNS Provider Organisation
 - Timezone and Geolocation (where available)
 
@@ -46,7 +46,7 @@ It is still experimental, some features may or may not work depending on your en
 
 ### Addressing
 - IPv4 Address
-- IPv6 Address (including Link-local)
+- IPv6 Address
 - Subnet Mask
 - Prefix Length
 - Default Gateway
@@ -54,17 +54,15 @@ It is still experimental, some features may or may not work depending on your en
 
 ### Wi-Fi Features
 - Wi-Fi SSID
-- Wi-Fi Key (retrieved via `netsh`)
-- Filtered to 802.11 interfaces only
+- Wi-Fi Key
 
 ### DHCP Information
 - DHCPv4 Enabled Status
 - DHCPv4 Server
-- Lease Obtained / Expiry Time
+- Lease Information
 - DHCPv6 Enabled Status
 - DHCPv6 IAID
 - DHCPv6 Client DUID
-- DHCPv6 Lease Information (where available)
 
 ### Network Activity Insight
 - Received Bytes (MB)
@@ -90,7 +88,7 @@ It is still experimental, some features may or may not work depending on your en
 ## Performance Notes
 
 - PowerShell (`.ps1`) execution: ~3–5 seconds  
-- Compiled executable (`PS2EXE`): ~10–15 seconds  
+- Compiled executable (`PS2EXE`): ~8–15 seconds  
 
 Runtime depends on:
 - External API response time (public IP / DNS)
