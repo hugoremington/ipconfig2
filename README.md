@@ -79,6 +79,14 @@ It is still experimental, some features may or may not work depending on your en
 
 ---
 
+## To-Do
+ - Output to TXT/CSV feature.
+ - Utilise paramaters.
+ - Create switches/flags for more/less output.
+ - Improve performance.
+
+---
+
 ## Performance Notes
 
 - PowerShell (`.ps1`) execution: ~3–5 seconds  
@@ -165,6 +173,8 @@ ipconfig2.exe or .\ipconfig2.ps1
 ### 0.1.0.0
 * Got public IP address working.
 * Initial draft.
+
+---
 
 # Attribution & License
 
