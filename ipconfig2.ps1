@@ -425,7 +425,7 @@ try { # v0.3.0.0 try/catch block for exception handling.
             $ipv4Addresses = $getAllIpAddresses | Where-Object {$_.AddressFamily -eq "IPv4"}
             foreach ($ipV4 in $ipv4Addresses) {
                 # Convert prefix length to subnet mask using a simpler approach
-                $subnetMask = Convert-PrefixToSubnetMask -PrefixLength $ip.PrefixLength
+                $subnetMask = Convert-PrefixToSubnetMask -PrefixLength $ipV4.PrefixLength
                 
                 $localInfo += [PSCustomObject]@{
                     MediaConnectionState = $adapter.MediaConnectionState

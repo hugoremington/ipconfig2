@@ -217,4 +217,4 @@ License: MIT
 
 Compiled as an EXE using [MScholtes/PS2EXE](https://github.com/MScholtes/PS2EXE)
 
-Public IP and Public DNS retrieval using REST API via free providers [ip-api.com](https://ip-api.com) and [ipinfo.io](https://ipinfo.io). Licensing is subject to their terms and conditions.
+Public IP and Public DNS retrieval using REST API via free providers [ip-api.com](https://ip-api.com). Licensing is subject to their terms and conditions.
