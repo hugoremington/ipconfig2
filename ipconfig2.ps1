@@ -1,7 +1,7 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "0.4.0.9"
-$date = "30-Mar-2026"
+$version = "0.4.1.0"
+$date = "31-Mar-2026"
 
 # Splash screen
 Write-Host ""
@@ -49,6 +49,9 @@ function Get-AllSystemInfo {
                     if ($cfg.NetProfile -and $cfg.NetProfile.Name) {
                         $netProfileName = $cfg.NetProfile.Name
                     }
+                    if ($cfg.NetProfile -and $cfg.NetProfile.NetworkCategory) {
+                        $netProfileCategory = $cfg.NetProfile.NetworkCategory
+                    }
                 }
             } catch {}
 
@@ -88,6 +91,7 @@ function Get-AllSystemInfo {
                 Hostname            = $hostname
                 primaryDnsSuffix    = $primaryDnsSuffix
                 NetProfileName      = $netProfileName
+                netProfileCategory  = $netProfileCategory
                 IPRoutingEnabled    = $ipRoutingEnabled
                 WINSProxyEnabled    = $winsProxyEnabled
                 DNSSuffixSearchList = $dnsSuffixSearchList
@@ -464,26 +468,13 @@ try { # v0.3.0.0 try/catch block for exception handling.
             # Get IPv6 addresses
             $ipv6Addresses = $getAllIpAddresses | Where-Object {$_.AddressFamily -eq "IPv6"}
             foreach ($ipV6 in $ipv6Addresses) {
-                $localLinkAddress = $null
-                $ipv6Address = $null
-
-                if ($ipV6.IPAddress -like "fe80::*") {
-                    $localLinkAddress = $ipV6.IPAddress
-                }
-                elseif ($null -ne $ipV6.IPAddress -and $ipV6.IPAddress -notlike "fe80::*") {
-                    $ipv6Address = $ipV6.IPAddress
-                    <#if ($ipV6.IPAddress) {
-                        $ipv6Address = ($ipv6Address).Trim()
-                    }#>
-                }
                 $localInfo += [PSCustomObject]@{
                     MediaConnectionState = $adapter.MediaConnectionState
                     InterfaceDescription = $adapter.InterfaceDescription
                     PhysicalMediaType = $adapter.PhysicalMediaType
                     LinkSpeed = $adapter.LinkSpeed
                     InterfaceName = $adapter.Name
-                    IPV6Address = $ipv6Address
-                    LocalLinkAddress = $localLinkAddress
+                    IPV6Address = $ipV6.IPAddress
                     AddressFamily = "IPv6"
                     AddressState = $ipV6.AddressState
                     ipv6Type = $ipv6Type
@@ -534,7 +525,8 @@ $metadata = $allInfo.Metadata
 Write-Host ""
 Write-Host "   Host Name . . . . . . . . . . . . . : $($metadata.Hostname)" -ForegroundColor Yellow
 Write-Host "   Primary Dns Suffix  . . . . . . . . : $($metadata.primaryDnsSuffix)" -ForegroundColor Yellow
-Write-Host "   Net Profile Name. . . . . . . . . . : $($metadata.NetProfileName)" -ForegroundColor Yellow
+Write-Host "   Network Profile Name. . . . . . . . : $($metadata.NetProfileName)" -ForegroundColor Yellow
+Write-Host "   Network Profile Category. . . . . . : $($metadata.NetProfileCategory)" -ForegroundColor Yellow
 Write-Host "   IP Routing Enabled. . . . . . . . . : $($metadata.IPRoutingEnabled)" -ForegroundColor Yellow
 Write-Host "   WINS Proxy Enabled. . . . . . . . . : $($metadata.WINSProxyEnabled)" -ForegroundColor Yellow
 Write-Host "   DNS Suffix Search List. . . . . . . : $($metadata.DNSSuffixSearchList)" -ForegroundColor Yellow
@@ -549,10 +541,10 @@ if ($IspInfo)
     # Display information
     Write-Host "Public IP Address" -ForegroundColor Green
     Write-Host ""
-    Write-Host "   Public IPv4 Address . . . . . . . . : $($ispInfo.IspIP)" -ForegroundColor Yellow
-    Write-Host "   Public DNS Server . . . . . . . . . : $($ispInfo.DnsIP)" -ForegroundColor Yellow
+    Write-Host "   Public IPv4 Address . . . . . . . . : $($ispInfo.IspIP -join ', ')" -ForegroundColor Yellow
+    Write-Host "   External DNS Server . . . . . . . . : $($ispInfo.DnsIP -join ', ')" -ForegroundColor Yellow
     Write-Host "   ISP Name. . . . . . . . . . . . . . : $($ispInfo.IspName)" -ForegroundColor Yellow
-    Write-Host "   ISP Org . . . . . . . . . . . . . . : $($ispInfo.IspOrg)" -ForegroundColor Yellow
+    Write-Host "   ISP Organisation. . . . . . . . . . : $($ispInfo.IspOrg)" -ForegroundColor Yellow
     Write-Host "   ISP ASN . . . . . . . . . . . . . . : $($ispInfo.IspAs)" -ForegroundColor Yellow
     Write-Host "   ISP City. . . . . . . . . . . . . . : $($ispInfo.IspCity)" -ForegroundColor Yellow
     Write-Host "   ISP Region. . . . . . . . . . . . . : $($ispInfo.IspRegion)" -ForegroundColor Yellow
@@ -587,27 +579,26 @@ foreach ($group in $groupedInfo) {
         foreach ($info in $ipv4Addresses) {
             Write-Host "   Description . . . . . . . . . . . . : $($info.InterfaceDescription)" -ForegroundColor Yellow
             Write-Host "   Media State . . . . . . . . . . . . : $($info.MediaConnectionState)" -ForegroundColor Yellow
+            Write-Host "   Media Type. . . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
             Write-Host "   Connection-specific DNS Suffix  . . : $($firstIPv4.DnsSuffix)" -ForegroundColor Yellow
             # Display Link-local IPv6 Address if exists
             if ($ipv6Addresses) {
-                if ($($ipv6Addresses.IPV6Address))
-                {
-                    # 0.4.0.7 Fixed IPv6 separation from Local-link IPv6 Address. Sanitised code, removing whitespaces.
-                    $cleanIPv6 = $ipv6Addresses | Where-Object { $_.IPV6Address } | ForEach-Object {"$($_.IPV6Address.Trim())"}
-                    Write-Host "   IPv6 Address. . . . . . . . . . . . : $($cleanIPv6 -join ', ')" -ForegroundColor Yellow
-                    $cleanIPv6 = $null
-                }
-                if ($($ipv6Addresses.LocalLinkAddress))
-                {
-                    Write-Host "   Link-local IPv6 Address . . . . . . : $($ipv6Addresses.LocalLinkAddress)" -ForegroundColor Yellow
+                foreach ($subInfo in $ipv6Addresses)
+                {              
+                    if ($null -ne $subInfo.IPV6Address -and $subInfo.IPV6Address -notlike "fe80::*") {
+                        $ipv6Address = $subInfo.IPV6Address
+                        Write-Host "   IPv6 Address. . . . . . . . . . . . : $($ipv6Address -join ', ')" -ForegroundColor Yellow
+                    }
+                    if ($subInfo.IPV6Address -like "fe80::*") {
+                        $localLinkAddress = $subInfo.IPV6Address
+                        Write-Host "   Link-local IPv6 Address . . . . . . : $($localLinkAddress)" -ForegroundColor Yellow
+                    }
                 }
             }
             If ($info.MediaConnectionState -eq "Disconnected") {
-                Write-Host "   Media Type. . . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
                 Write-Host "   Link Speed. . . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
             }
             Elseif($info.MediaConnectionState -eq "Connected") {
-                Write-Host "   Media Type. . . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
                 If ($info.PhysicalMediaType -like "*802.11*")
                 {
                     Write-Host "   WiFi SSID . . . . . . . . . . . . . : $($info.wifiSSID)" -ForegroundColor Yellow
@@ -651,23 +642,22 @@ foreach ($group in $groupedInfo) {
         foreach ($info in $ipv6Addresses) {
             Write-Host "   Description . . . . . . . . . . . . : $($info.InterfaceDescription)" -ForegroundColor Yellow
             Write-Host "   Media State . . . . . . . . . . . . : $($info.MediaConnectionState)" -ForegroundColor Yellow
+            Write-Host "   Media Type. . . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
             If ($info.MediaConnectionState -eq "Disconnected") {
                 Write-Host "   Connection-specific DNS Suffix  . . : $($firstIPv6.DnsSuffix)" -ForegroundColor Yellow
-                Write-Host "   Media Type. . . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
                 Write-Host "   Link Speed. . . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
             }
             Elseif($info.MediaConnectionState -eq "Connected") {
-                If ($info.IPV6Address)
+                if ($null -ne $info.IPV6Address -and $info.IPV6Address -notlike "fe80::*")
                 {
-                    $cleanIPv6 = ($info.IPV6Address | Where-Object { $_ } | ForEach-Object { $_.TrimStart() })
-                    Write-Host "   IPv6 Address. . . . . . . . . . . . : $($cleanIPv6 -join ', ')" -ForegroundColor Yellow
-                    $cleanIPv6 = $null
+                    $ipv6Address = $info.IPV6Address
+                    Write-Host "   IPv6 Address. . . . . . . . . . . . : $($ipv6Address -join ', ')" -ForegroundColor Yellow
                 }
-                If ($info.LocalLinkAddress)
+                if ($info.IPV6Address -like "fe80::*")
                 {
-                    Write-Host "   Link-local IPv6 Addres . . . . . . : $($info.LocalLinkAddress)" -ForegroundColor Yellow
+                    $localLinkAddress = $info.IPV6Address
+                    Write-Host "   Link-local IPv6 Address . . . . . . : $($localLinkAddress)" -ForegroundColor Yellow
                 }
-                Write-Host "   Media Type. . . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
                 If ($info.PhysicalMediaType -like "*802.11*")
                 {
                     Write-Host "   WiFi SSID . . . . . . . . . . . . . : $($info.wifiSSID)" -ForegroundColor Yellow

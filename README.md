@@ -110,6 +110,14 @@ ipconfig2 [/version]
 
 ## Changelog
 
+### 0.4.1.0 - 31-Mar-2026
+* Appended network profile category into metadata output table.
+* Refactored IPv6 output, omitted LocalLinkAddress from retun tables. Appended better logic in output display area for both IPv4 and IPv6 sections.
+* Fixed External DNS Server reporting by appending -join operator for multi support.
+* Omitted $cleanIPv6.
+* Omitted duplicate Media Type output code in both if/else conditions.
+* Media Type now displays nicely underneat Media State.
+* Slight re-wording and optimisation.
 ### 0.4.0.9 - 30-Mar-2026
 * Resolved metadata output line spacing.
 ### 0.4.0.8 - 30-Mar-2026
