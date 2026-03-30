@@ -1,6 +1,6 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "0.4.1.0"
+$version = "0.4.1.1"
 $date = "31-Mar-2026"
 
 # Splash screen
@@ -42,18 +42,20 @@ function Get-AllSystemInfo {
                 $tcpipParams = Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue
             } catch {}
 
-            # Net profile name
-            $netProfileName = $null
+            # Net profile metadata
             try {
-                foreach ($cfg in Get-NetIPConfiguration -ErrorAction SilentlyContinue) {
-                    if ($cfg.NetProfile -and $cfg.NetProfile.Name) {
-                        $netProfileName = $cfg.NetProfile.Name
-                    }
-                    if ($cfg.NetProfile -and $cfg.NetProfile.NetworkCategory) {
-                        $netProfileCategory = $cfg.NetProfile.NetworkCategory
-                    }
+                    $NetConnectionQuery = Get-NetConnectionProfile
+                    $netProfileName = $NetConnectionQuery.Name
+                    $netProfileCategory = $NetConnectionQuery.NetworkCategory
+                    $netIPv4Connectivity = $NetConnectionQuery.IPv4Connectivity
+                    $netIPv6Connectivity = $NetConnectionQuery.IPv6Connectivity
                 }
-            } catch {}
+            catch {
+                    $netProfileName = $null
+                    $netProfileCategory = $null
+                    $netIPv4Connectivity = $null
+                    $netIPv6Connectivity = $null
+                }
 
             # Registry-backed values
             $ipRoutingEnabled = "No"
@@ -91,7 +93,9 @@ function Get-AllSystemInfo {
                 Hostname            = $hostname
                 primaryDnsSuffix    = $primaryDnsSuffix
                 NetProfileName      = $netProfileName
-                netProfileCategory  = $netProfileCategory
+                NetProfileCategory  = $netProfileCategory
+                NetIPv4Connectivity = $netIPv4Connectivity
+                NetIPv6Connectivity = $netIPv6Connectivity
                 IPRoutingEnabled    = $ipRoutingEnabled
                 WINSProxyEnabled    = $winsProxyEnabled
                 DNSSuffixSearchList = $dnsSuffixSearchList
@@ -385,10 +389,10 @@ try { # v0.3.0.0 try/catch block for exception handling.
             try {
                 $autoConfigurationBinding = netsh interface ipv4 show interface $adapter.InterfaceIndex | Select-String "DAD Transmits" | ForEach-Object { ($_ -split ":")[1].Trim() }
                 If ($autoConfigurationBinding -eq 0) {
-                    $autoConfigurationEnabled = "Disabled"
+                    $autoConfigurationEnabled = "No"
                 }
                 else { 
-                    $autoConfigurationEnabled = "Enabled" 
+                    $autoConfigurationEnabled = "Yes" 
                 }
             } catch {
             }
@@ -524,12 +528,14 @@ $metadata = $allInfo.Metadata
 # Line space
 Write-Host ""
 Write-Host "   Host Name . . . . . . . . . . . . . : $($metadata.Hostname)" -ForegroundColor Yellow
-Write-Host "   Primary Dns Suffix  . . . . . . . . : $($metadata.primaryDnsSuffix)" -ForegroundColor Yellow
+Write-Host "   Primary Dns Suffix  . . . . . . . . : $($metadata.primaryDnsSuffix -join ', ')" -ForegroundColor Yellow
 Write-Host "   Network Profile Name. . . . . . . . : $($metadata.NetProfileName)" -ForegroundColor Yellow
 Write-Host "   Network Profile Category. . . . . . : $($metadata.NetProfileCategory)" -ForegroundColor Yellow
 Write-Host "   IP Routing Enabled. . . . . . . . . : $($metadata.IPRoutingEnabled)" -ForegroundColor Yellow
 Write-Host "   WINS Proxy Enabled. . . . . . . . . : $($metadata.WINSProxyEnabled)" -ForegroundColor Yellow
 Write-Host "   DNS Suffix Search List. . . . . . . : $($metadata.DNSSuffixSearchList)" -ForegroundColor Yellow
+Write-Host "   IPv4 Connectivity . . . . . . . . . : $($metadata.NetIPv4Connectivity)" -ForegroundColor Yellow
+Write-Host "   IPv6 Connectivity . . . . . . . . . : $($metadata.NetIPv6Connectivity)" -ForegroundColor Yellow
 Write-Host ""
 
 # v0.4.0.1 new Get-ISP Function
@@ -542,7 +548,7 @@ if ($IspInfo)
     Write-Host "Public IP Address" -ForegroundColor Green
     Write-Host ""
     Write-Host "   Public IPv4 Address . . . . . . . . : $($ispInfo.IspIP -join ', ')" -ForegroundColor Yellow
-    Write-Host "   External DNS Server . . . . . . . . : $($ispInfo.DnsIP -join ', ')" -ForegroundColor Yellow
+    Write-Host "   Public DNS Server . . . . . . . . . : $($ispInfo.DnsIP -join ', ')" -ForegroundColor Yellow
     Write-Host "   ISP Name. . . . . . . . . . . . . . : $($ispInfo.IspName)" -ForegroundColor Yellow
     Write-Host "   ISP Organisation. . . . . . . . . . : $($ispInfo.IspOrg)" -ForegroundColor Yellow
     Write-Host "   ISP ASN . . . . . . . . . . . . . . : $($ispInfo.IspAs)" -ForegroundColor Yellow
@@ -632,7 +638,7 @@ foreach ($group in $groupedInfo) {
                 }
             }
             Write-Host "   Autoconfiguration Enabled . . . . . : $($info.AutoconfigurationEnabled)" -ForegroundColor Yellow
-            Write-Host "   NetBIOS Enabled . . . . . . . . . . : $($info.NetbiosEnabled)" -ForegroundColor Yellow
+            Write-Host "   NetBIOS over Tcpip. . . . . . . . . : $($info.NetbiosEnabled)" -ForegroundColor Yellow
         }
     }
     
@@ -690,7 +696,7 @@ foreach ($group in $groupedInfo) {
                 }
             }
         Write-Host "   Autoconfiguration Enabled . . . . . : $($info.AutoconfigurationEnabled)" -ForegroundColor Yellow
-        Write-Host "   NetBIOS Enabled . . . . . . . . . . : $($info.NetbiosEnabled)" -ForegroundColor Yellow
+        Write-Host "   NetBIOS over Tcpip. . . . . . . . . : $($info.NetbiosEnabled)" -ForegroundColor Yellow
         }
     }
     

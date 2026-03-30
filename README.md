@@ -110,6 +110,11 @@ ipconfig2 [/version]
 
 ## Changelog
 
+### 0.4.1.1 - 31-Mar-2026
+* Fixed network profile category not appearing in certain conditions.
+* Appended Internet connectivity checks in metadata.
+* Fixed display wording for Autoconfiguration enabled.
+* Fixed display wording for NetBIOS over Tcpip.
 ### 0.4.1.0 - 31-Mar-2026
 * Appended network profile category into metadata output table.
 * Refactored IPv6 output, omitted LocalLinkAddress from retun tables. Appended better logic in output display area for both IPv4 and IPv6 sections.
