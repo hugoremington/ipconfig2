@@ -29,7 +29,7 @@ function Convert-PrefixToSubnetMask {
 
 # v0.4.0.6 Optimised MAIN removed nested jobs/threads. Using return arrays for performance.
 function Get-AllSystemInfo {
-    $metadataJob = Start-Job -ScriptBlock {
+    # $metadataJob = Start-Job -ScriptBlock {
         function Get-Metadata {
             $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
 
@@ -93,8 +93,8 @@ function Get-AllSystemInfo {
                 DNSSuffixSearchList = $dnsSuffixSearchList
             }
         }
-        Get-Metadata
-    }
+        # Get-Metadata
+    # } # Metadata job finish
 
     # Only parallelise the expensive external call path
     $ispJob = Start-Job -ScriptBlock {
@@ -156,22 +156,22 @@ function Get-AllSystemInfo {
     }
 
     # Run metadata synchronously
-    # $metadata = Get-Metadata
+    $metadata = Get-Metadata
 
     # Collect Job threads result
-    Wait-Job -Job $ispJob, $metadataJob -Timeout 10 | Out-Null
+    Wait-Job -Job $ispJob -Timeout 10 | Out-Null
 
     $IspInfo        =   $null
     $MetadataInfo   =   $null
     try {
         $IspInfo =      Receive-Job -Job $ispJob -ErrorAction SilentlyContinue
-        $MetadataInfo = Receive-Job -Job $MetadataJob -ErrorAction SilentlyContinue
+        #$MetadataInfo = Receive-Job -Job $MetadataJob -ErrorAction SilentlyContinue
     } catch {}
 
-    Remove-Job -Job $ispJob, $metadataJob -Force -ErrorAction SilentlyContinue
+    Remove-Job -Job $ispJob -Force -ErrorAction SilentlyContinue
 
     return @{
-        Metadata = $metadataInfo
+        Metadata = $metadata
         IspInfo  = $IspInfo
     }
 }
@@ -557,6 +557,7 @@ if ($IspInfo)
     Write-Host "   ISP City. . . . . . . . . . . . . . : $($ispInfo.IspCity)" -ForegroundColor Yellow
     Write-Host "   ISP Region. . . . . . . . . . . . . : $($ispInfo.IspRegion)" -ForegroundColor Yellow
     Write-Host "   ISP Country . . . . . . . . . . . . : $($ispInfo.IspCountry)" -ForegroundColor Yellow
+    Write-Host "   ISP ZIP Code. . . . . . . . . . . . : $($ispInfo.IspZip)" -ForegroundColor Yellow
     Write-Host "   ISP Location. . . . . . . . . . . . : $($ispInfo.IspLoc)" -ForegroundColor Yellow
     Write-Host "   ISP Timezone. . . . . . . . . . . . : $($ispInfo.IspTimezone)" -ForegroundColor Yellow
     Write-Host ""

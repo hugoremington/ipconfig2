@@ -110,10 +110,13 @@ ipconfig2 [/version]
 
 ## Changelog
 
+### 0.4.0.8 - 30-Mar-2026
+* Removed multi-threading for Get-Metadata as it is slower when multithreading in function, might be quicker to multithread when there are multiple functions greater than 2.
+* Reinstated ISP ZIP Code data point.
 ### 0.4.0.7 - 30-Mar-2026
 * This release brings performance improvements.
 * Removed redundant Get-Isp nested function inside MAIN Get-AllSystemInfo function. Reducing unnecessary threads and improving performance.
-* Applied multi-threading jobs for Get-Metadata nested function inside Get-AllSystemInfo parent function. This may improve performance, as it is the longest execution time element in the source code atm.
+* Applied multi-threading jobs for Get-Metadata nested function inside Get-AllSystemInfo parent function. This may improve performance, as it is the longest execution time element in the source code atm. 
 * Omitted redundant API call to "https://ipinfo.io/json". Improving performance.
 * Optimised Get-Isp return array, to match new REST API telemetry.
 * Optimised Get-Metadata function to use $tcpipParams.PSObject memory instead of four Get-ItemProperty system registry calls. Improved performance.
