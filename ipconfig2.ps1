@@ -1,6 +1,6 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "0.4.0.7"
+$version = "0.4.0.8"
 $date = "30-Mar-2026"
 
 # Splash screen
