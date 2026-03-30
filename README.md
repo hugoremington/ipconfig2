@@ -110,6 +110,8 @@ ipconfig2 [/version]
 
 ## Changelog
 
+### 0.4.0.9 - 30-Mar-2026
+* Resolved metadata output line spacing.
 ### 0.4.0.8 - 30-Mar-2026
 * Removed multi-threading for Get-Metadata as it is slower when multithreading in function, might be quicker to multithread when there are multiple functions greater than 2.
 * Reinstated ISP ZIP Code data point.

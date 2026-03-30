@@ -1,6 +1,6 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "0.4.0.8"
+$version = "0.4.0.9"
 $date = "30-Mar-2026"
 
 # Splash screen
@@ -532,12 +532,12 @@ $metadata = $allInfo.Metadata
 <# DISPLAY OUTPUT START #>
 # Line space
 Write-Host ""
-Write-Host "   Host Name . . . . . . . . . . . . : $($metadata.Hostname)" -ForegroundColor Yellow
-Write-Host "   Primary Dns Suffix  . . . . . . . : $($metadata.primaryDnsSuffix)" -ForegroundColor Yellow
-Write-Host "   Net Profile Name. . . . . . . . . : $($metadata.NetProfileName)" -ForegroundColor Yellow
-Write-Host "   IP Routing Enabled. . . . . . . . : $($metadata.IPRoutingEnabled)" -ForegroundColor Yellow
-Write-Host "   WINS Proxy Enabled. . . . . . . . : $($metadata.WINSProxyEnabled)" -ForegroundColor Yellow
-Write-Host "   DNS Suffix Search List. . . . . . : $($metadata.DNSSuffixSearchList)" -ForegroundColor Yellow
+Write-Host "   Host Name . . . . . . . . . . . . . : $($metadata.Hostname)" -ForegroundColor Yellow
+Write-Host "   Primary Dns Suffix  . . . . . . . . : $($metadata.primaryDnsSuffix)" -ForegroundColor Yellow
+Write-Host "   Net Profile Name. . . . . . . . . . : $($metadata.NetProfileName)" -ForegroundColor Yellow
+Write-Host "   IP Routing Enabled. . . . . . . . . : $($metadata.IPRoutingEnabled)" -ForegroundColor Yellow
+Write-Host "   WINS Proxy Enabled. . . . . . . . . : $($metadata.WINSProxyEnabled)" -ForegroundColor Yellow
+Write-Host "   DNS Suffix Search List. . . . . . . : $($metadata.DNSSuffixSearchList)" -ForegroundColor Yellow
 Write-Host ""
 
 # v0.4.0.1 new Get-ISP Function
