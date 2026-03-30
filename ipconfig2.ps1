@@ -1,6 +1,6 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "0.4.0.6"
+$version = "0.4.0.7"
 $date = "30-Mar-2026"
 
 # Splash screen
@@ -29,119 +29,71 @@ function Convert-PrefixToSubnetMask {
 
 # v0.4.0.6 Optimised MAIN removed nested jobs/threads. Using return arrays for performance.
 function Get-AllSystemInfo {
+    $metadataJob = Start-Job -ScriptBlock {
+        function Get-Metadata {
+            $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
 
-    function Get-Isp {
-        $ispJob1 = Start-Job -ScriptBlock {
+            # Fast local value
+            $hostname = [System.Environment]::MachineName
+
+            # Read registry once
+            $tcpipParams = $null
             try {
-                Invoke-RestMethod "http://ip-api.com/json/" -ErrorAction Stop
-            }
-            catch {
-                $null
-            }
-        }
+                $tcpipParams = Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue
+            } catch {}
 
-        $ispJob2 = Start-Job -ScriptBlock {
+            # Net profile name
+            $netProfileName = $null
             try {
-                Invoke-RestMethod "https://ipinfo.io/json" -ErrorAction Stop
+                foreach ($cfg in Get-NetIPConfiguration -ErrorAction SilentlyContinue) {
+                    if ($cfg.NetProfile -and $cfg.NetProfile.Name) {
+                        $netProfileName = $cfg.NetProfile.Name
+                    }
+                }
+            } catch {}
+
+            # Registry-backed values
+            $ipRoutingEnabled = "No"
+            if ($tcpipParams -and $tcpipParams.PSObject.Properties.Name -contains 'IPEnableRouter') {
+                if ($tcpipParams.IPEnableRouter -eq 1) {
+                    $ipRoutingEnabled = "Yes"
+                }
             }
-            catch {
-                $null
+
+            $winsProxyEnabled = "No"
+            if ($tcpipParams -and $tcpipParams.PSObject.Properties.Name -contains 'EnableProxy') {
+                if ($tcpipParams.EnableProxy -eq 1) {
+                    $winsProxyEnabled = "Yes"
+                }
+            }
+
+            $primaryDnsSuffix = $null
+            if ($tcpipParams -and $tcpipParams.PSObject.Properties.Name -contains 'Domain') {
+                $primaryDnsSuffix = $tcpipParams.Domain
+            }
+
+            $dnsSuffixSearchList = $null
+            if ($tcpipParams -and $tcpipParams.PSObject.Properties.Name -contains 'SearchList') {
+                $searchList = $tcpipParams.SearchList
+
+                if ($searchList -is [array]) {
+                    $dnsSuffixSearchList = $searchList -join ", "
+                }
+                elseif ($searchList) {
+                    $dnsSuffixSearchList = $searchList
+                }
+            }
+
+            return [PSCustomObject]@{
+                Hostname            = $hostname
+                primaryDnsSuffix    = $primaryDnsSuffix
+                NetProfileName      = $netProfileName
+                IPRoutingEnabled    = $ipRoutingEnabled
+                WINSProxyEnabled    = $winsProxyEnabled
+                DNSSuffixSearchList = $dnsSuffixSearchList
             }
         }
-
-        # Wait up to 10 seconds for both
-        Wait-Job -Job $ispJob1, $ispJob2 -Timeout 10 | Out-Null
-
-        $ispApi1 = $null
-        $ispApi2 = $null
-
-        try { $ispApi1 = Receive-Job -Job $ispJob1 -ErrorAction SilentlyContinue } catch {}
-        try { $ispApi2 = Receive-Job -Job $ispJob2 -ErrorAction SilentlyContinue } catch {}
-
-        Remove-Job -Job $ispJob1, $ispJob2 -Force -ErrorAction SilentlyContinue
-
-        if (-not $ispApi1 -and -not $ispApi2) {
-            return $null
-        }
-
-        return [PSCustomObject]@{
-            # ISP variables (primarily from ip-api)
-            IspIP       = if ($ispApi1.query)    { $ispApi1.query }    elseif ($ispApi2.ip) { $ispApi2.ip } else { $null }
-            IspName     = if ($ispApi1.isp)      { $ispApi1.isp }      else { $null }
-            IspOrg      = if ($ispApi1.org)      { $ispApi1.org }      elseif ($ispApi2.org) { $ispApi2.org } else { $null }
-            IspCity     = if ($ispApi1.city)     { $ispApi1.city }     elseif ($ispApi2.city) { $ispApi2.city } else { $null }
-            IspCountry  = if ($ispApi1.country)  { $ispApi1.country }  elseif ($ispApi2.country) { $ispApi2.country } else { $null }
-
-            # DNS / public resolver / geolocation style data (primarily from ipinfo)
-            DnsIP       = if ($ispApi2.ip)       { $ispApi2.ip }       else { $null }
-            DnsCity     = if ($ispApi2.city)     { $ispApi2.city }     else { $null }
-            DnsRegion   = if ($ispApi2.region)   { $ispApi2.region }   else { $null }
-            DnsCountry  = if ($ispApi2.country)  { $ispApi2.country }  else { $null }
-            DnsLoc      = if ($ispApi2.loc)      { $ispApi2.loc }      else { $null }
-            DnsOrg      = if ($ispApi2.org)      { $ispApi2.org }      else { $null }
-            DnsPostal   = if ($ispApi2.postal)   { $ispApi2.postal }   else { $null }
-            DnsTimezone = if ($ispApi2.timezone) { $ispApi2.timezone } else { $null }
-        }
-    }
-
-    function Get-Metadata {
-        $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
-
-        $hostname = [System.Environment]::MachineName
-
-        $netProfileName = $null
-        try {
-            $netProfileName = (Get-NetIPConfiguration -ErrorAction SilentlyContinue).NetProfile.Name
-            if ($netProfileName -is [array]) {
-                $netProfileName = $netProfileName | Select-Object -First 1
-            }
-        } catch {}
-
-        $ipRoutingEnabled = "No"
-        try {
-            $ipRoutingValue = Get-ItemProperty -Path $registryPath -Name "IPEnableRouter" -ErrorAction SilentlyContinue |
-                Select-Object -ExpandProperty IPEnableRouter -ErrorAction SilentlyContinue
-            if ($ipRoutingValue -eq 1) {
-                $ipRoutingEnabled = "Yes"
-            }
-        } catch {}
-
-        $winsProxyEnabled = "No"
-        try {
-            $winsProxyValue = Get-ItemProperty -Path $registryPath -Name "EnableProxy" -ErrorAction SilentlyContinue |
-                Select-Object -ExpandProperty EnableProxy -ErrorAction SilentlyContinue
-            if ($winsProxyValue -eq 1) {
-                $winsProxyEnabled = "Yes"
-            }
-        } catch {}
-
-        $primaryDnsSuffix = $null
-        try {
-            $primaryDnsSuffix = Get-ItemProperty -Path $registryPath -Name "Domain" -ErrorAction SilentlyContinue |
-                Select-Object -ExpandProperty Domain -ErrorAction SilentlyContinue
-        } catch {}
-
-        $dnsSuffixSearchList = $null
-        try {
-            $searchList = Get-ItemProperty -Path $registryPath -Name "SearchList" -ErrorAction SilentlyContinue |
-                Select-Object -ExpandProperty SearchList -ErrorAction SilentlyContinue
-
-            if ($searchList -is [array]) {
-                $dnsSuffixSearchList = $searchList -join ", "
-            }
-            elseif ($searchList) {
-                $dnsSuffixSearchList = $searchList
-            }
-        } catch {}
-
-        return [PSCustomObject]@{
-            Hostname             = $hostname
-            primaryDnsSuffix     = $primaryDnsSuffix
-            NetProfileName       = $netProfileName
-            IPRoutingEnabled     = $ipRoutingEnabled
-            WINSProxyEnabled     = $winsProxyEnabled
-            DNSSuffixSearchList  = $dnsSuffixSearchList
-        }
+        Get-Metadata
     }
 
     # Only parallelise the expensive external call path
@@ -149,51 +101,54 @@ function Get-AllSystemInfo {
         function Get-Isp {
             $ispJob1 = Start-Job -ScriptBlock {
                 try {
-                    Invoke-RestMethod "http://ip-api.com/json/" -ErrorAction Stop
+                    Invoke-RestMethod "http://ip-api.com/json/" -ErrorAction SilentlyContinue
                 }
                 catch {
                     $null
                 }
             }
 
-            $ispJob2 = Start-Job -ScriptBlock {
+            $dnsJob1 = Start-Job -ScriptBlock {
                 try {
-                    Invoke-RestMethod "https://ipinfo.io/json" -ErrorAction Stop
+                    Resolve-DnsName whoami.akamai.net -ErrorAction SilentlyContinue
+                    
                 }
                 catch {
                     $null
                 }
             }
 
-            Wait-Job -Job $ispJob1, $ispJob2 -Timeout 10 | Out-Null
+            Wait-Job -Job $ispJob1, $dnsJob1 -Timeout 10 -ErrorAction SilentlyContinue | Out-Null
 
             $ispApi1 = $null
-            $ispApi2 = $null
+            $dnsApi1 = $null
 
             try { $ispApi1 = Receive-Job -Job $ispJob1 -ErrorAction SilentlyContinue } catch {}
-            try { $ispApi2 = Receive-Job -Job $ispJob2 -ErrorAction SilentlyContinue } catch {}
+            try { $dnsApi1 = Receive-Job -Job $dnsJob1 -ErrorAction SilentlyContinue } catch {}
 
-            Remove-Job -Job $ispJob1, $ispJob2 -Force -ErrorAction SilentlyContinue
+            Remove-Job -Job $ispJob1, $dnsJob1 -Force -ErrorAction SilentlyContinue
 
-            if (-not $ispApi1 -and -not $ispApi2) {
+            if (-not $ispApi1 -and -not $dnsApi1) {
                 return $null
             }
 
             return [PSCustomObject]@{
-                IspIP       = if ($ispApi1.query)    { $ispApi1.query }    elseif ($ispApi2.ip) { $ispApi2.ip } else { $null }
-                IspName     = if ($ispApi1.isp)      { $ispApi1.isp }      else { $null }
-                IspOrg      = if ($ispApi1.org)      { $ispApi1.org }      elseif ($ispApi2.org) { $ispApi2.org } else { $null }
-                IspCity     = if ($ispApi1.city)     { $ispApi1.city }     elseif ($ispApi2.city) { $ispApi2.city } else { $null }
-                IspCountry  = if ($ispApi1.country)  { $ispApi1.country }  elseif ($ispApi2.country) { $ispApi2.country } else { $null }
+                # ISP variables (primarily from ip-api)
+                IspIP       =   if ($ispApi1.query)                   { $ispApi1.query }                    else { $null }
+                IspName     =   if ($ispApi1.isp)                     { $ispApi1.isp }                      else { $null }
+                IspOrg      =   if ($ispApi1.org)                     { $ispApi1.org }                      else { $null }
+                IspAs       =   if ($ispApi1.as)                      { $ispApi1.as }                       else { $null }
+                IspCity     =   if ($ispApi1.city)                    { $ispApi1.city }                     else { $null }
+                IspRegion   =   if ($ispApi1.regionName)              { $ispApi1.regionName }               else { $null }
+                IspCountry  =   if ($ispApi1.country)                 { $ispApi1.country }                  else { $null }
+                IspZip      =   if ($ispApi1.zip)                     { $ispApi1.zip }                      else { $null }
+                IspTimezone =   if ($ispApi1.timezone)                { $ispApi1.Timezone }                 else { $null }
+                IspLat      =   if ($ispApi1.lat)                     { $ispApi1.lat }                      else { $null }
+                IspLon      =   if ($ispApi1.lon)                     { $ispApi1.lon }                      else { $null }
+                IspLoc      =   if ($ispApi1.lat -and $ispApi1.lon)   {"$($ispApi1.lat),$($ispApi1.lon)"}   else { $null }
 
-                DnsIP       = if ($ispApi2.ip)       { $ispApi2.ip }       else { $null }
-                DnsCity     = if ($ispApi2.city)     { $ispApi2.city }     else { $null }
-                DnsRegion   = if ($ispApi2.region)   { $ispApi2.region }   else { $null }
-                DnsCountry  = if ($ispApi2.country)  { $ispApi2.country }  else { $null }
-                DnsLoc      = if ($ispApi2.loc)      { $ispApi2.loc }      else { $null }
-                DnsOrg      = if ($ispApi2.org)      { $ispApi2.org }      else { $null }
-                DnsPostal   = if ($ispApi2.postal)   { $ispApi2.postal }   else { $null }
-                DnsTimezone = if ($ispApi2.timezone) { $ispApi2.timezone } else { $null }
+                # DNS / public resolver / geolocation style data (primarily from ipinfo)
+                DnsIP       = if ($dnsApi1.IPAddress)       { $dnsApi1.IPAddress }       else { $null }
             }
         }
 
@@ -201,20 +156,22 @@ function Get-AllSystemInfo {
     }
 
     # Run metadata synchronously
-    $metadata = Get-Metadata
+    # $metadata = Get-Metadata
 
-    # Collect ISP result
-    Wait-Job -Job $ispJob -Timeout 12 | Out-Null
+    # Collect Job threads result
+    Wait-Job -Job $ispJob, $metadataJob -Timeout 10 | Out-Null
 
-    $IspInfo = $null
+    $IspInfo        =   $null
+    $MetadataInfo   =   $null
     try {
-        $IspInfo = Receive-Job -Job $ispJob -ErrorAction SilentlyContinue
+        $IspInfo =      Receive-Job -Job $ispJob -ErrorAction SilentlyContinue
+        $MetadataInfo = Receive-Job -Job $MetadataJob -ErrorAction SilentlyContinue
     } catch {}
 
-    Remove-Job -Job $ispJob -Force -ErrorAction SilentlyContinue
+    Remove-Job -Job $ispJob, $metadataJob -Force -ErrorAction SilentlyContinue
 
     return @{
-        Metadata = $metadata
+        Metadata = $metadataInfo
         IspInfo  = $IspInfo
     }
 }
@@ -337,7 +294,6 @@ try { # v0.3.0.0 try/catch block for exception handling.
                 }
             }
 
-
             # Garbage clean up.
             $dhcpEnabledV4 = $false
             $dhcpEnabledV6 = $false
@@ -434,7 +390,7 @@ try { # v0.3.0.0 try/catch block for exception handling.
             }
             <# END Get Autoconfiguration APIPA #>
 
-            # Get NetBIOS over TCP/IP setting
+            <# START NetBIOS over TCP/IP settings #>
             try {
                 # Get NetBIOS over TCP/IP setting using Get-NetAdapterBinding
                 $netbiosBinding = Get-NetAdapterBinding -Name $adapter.Name -ComponentID "ms_tcpip" -ErrorAction SilentlyContinue
@@ -446,6 +402,8 @@ try { # v0.3.0.0 try/catch block for exception handling.
             } catch {
                 # If we can't get NetBIOS info, keep default
             }
+            <# END NetBIOS over TCP/IP settings #>
+
             # NIC Stats including ReceivedBytes and SentBytes
             try {
                 $GetAllStats = Get-NetAdapterStatistics -Name $adapter.Name -ErrorAction SilentlyContinue
@@ -455,7 +413,6 @@ try { # v0.3.0.0 try/catch block for exception handling.
                 $SentBytes = [math]::Round($SentBytes / 1MB, 2)
             }
             catch {
-
             }
             
             # Get DHCP Lease information (using current time as approximation)
@@ -466,7 +423,7 @@ try { # v0.3.0.0 try/catch block for exception handling.
             $getAllIpAddresses = Get-NetIPAddress -InterfaceIndex $adapter.InterfaceIndex -ErrorAction SilentlyContinue
             # Get IPv4 addresses
             $ipv4Addresses = $getAllIpAddresses | Where-Object {$_.AddressFamily -eq "IPv4"}
-            foreach ($ip in $ipv4Addresses) {
+            foreach ($ipV4 in $ipv4Addresses) {
                 # Convert prefix length to subnet mask using a simpler approach
                 $subnetMask = Convert-PrefixToSubnetMask -PrefixLength $ip.PrefixLength
                 
@@ -476,10 +433,11 @@ try { # v0.3.0.0 try/catch block for exception handling.
                     PhysicalMediaType = $PhysicalMediaType
                     LinkSpeed = $adapter.LinkSpeed
                     InterfaceName = $adapter.Name
-                    IPAddress = $ip.IPAddress
+                    IPAddress = $ipV4.IPAddress
                     AddressFamily = "IPv4"
+                    AddressState = $ipV4.AddressState
                     SubnetMask = $subnetMask
-                    PrefixLength = $ip.PrefixLength
+                    PrefixLength = $ipV4.PrefixLength
                     DnsSuffix = $dnsSuffix
                     MacAddress = $adapter.MacAddress
                     DefaultGateway = $gateway
@@ -505,17 +463,32 @@ try { # v0.3.0.0 try/catch block for exception handling.
             
             # Get IPv6 addresses
             $ipv6Addresses = $getAllIpAddresses | Where-Object {$_.AddressFamily -eq "IPv6"}
-            foreach ($ip in $ipv6Addresses) {
+            foreach ($ipV6 in $ipv6Addresses) {
+                $localLinkAddress = $null
+                $ipv6Address = $null
+
+                if ($ipV6.IPAddress -like "fe80::*") {
+                    $localLinkAddress = $ipV6.IPAddress
+                }
+                elseif ($null -ne $ipV6.IPAddress -and $ipV6.IPAddress -notlike "fe80::*") {
+                    $ipv6Address = $ipV6.IPAddress
+                    <#if ($ipV6.IPAddress) {
+                        $ipv6Address = ($ipv6Address).Trim()
+                    }#>
+                }
                 $localInfo += [PSCustomObject]@{
                     MediaConnectionState = $adapter.MediaConnectionState
                     InterfaceDescription = $adapter.InterfaceDescription
                     PhysicalMediaType = $adapter.PhysicalMediaType
                     LinkSpeed = $adapter.LinkSpeed
                     InterfaceName = $adapter.Name
-                    IPAddress = $ip.IPAddress
+                    IPV6Address = $ipv6Address
+                    LocalLinkAddress = $localLinkAddress
                     AddressFamily = "IPv6"
+                    AddressState = $ipV6.AddressState
+                    ipv6Type = $ipv6Type
                     SubnetMask = ""
-                    PrefixLength = $ip.PrefixLength
+                    PrefixLength = $ipV6.PrefixLength
                     DnsSuffix = $dnsSuffix
                     DefaultGateway = $gateway
                     DnsServers = $dnsServers
@@ -576,27 +549,18 @@ if ($IspInfo)
     # Display information
     Write-Host "Public IP Address" -ForegroundColor Green
     Write-Host ""
-    #Write-Host "  Public IP Address . . . . . . . . : $publicIP" -ForegroundColor Yellow
-    Write-Host "   Public IPv4 Address . . . . . . . : $($ispInfo.IspIP)" -ForegroundColor Yellow
-    Write-Host "   ISP Name. . . . . . . . . . . . . : $($ispInfo.IspName)" -ForegroundColor Yellow
-    Write-Host "   ISP Org . . . . . . . . . . . . . : $($ispInfo.IspOrg)" -ForegroundColor Yellow
-    Write-Host "   ISP City. . . . . . . . . . . . . : $($ispInfo.IspCity)" -ForegroundColor Yellow
-    Write-Host "   ISP Country . . . . . . . . . . . : $($ispInfo.IspCountry)" -ForegroundColor Yellow
-    Write-Host "" -ForegroundColor Green
-
-
-    # Display ISP DNS information
-    Write-Host "Public DNS Server" -ForegroundColor Green
+    Write-Host "   Public IPv4 Address . . . . . . . . : $($ispInfo.IspIP)" -ForegroundColor Yellow
+    Write-Host "   Public DNS Server . . . . . . . . . : $($ispInfo.DnsIP)" -ForegroundColor Yellow
+    Write-Host "   ISP Name. . . . . . . . . . . . . . : $($ispInfo.IspName)" -ForegroundColor Yellow
+    Write-Host "   ISP Org . . . . . . . . . . . . . . : $($ispInfo.IspOrg)" -ForegroundColor Yellow
+    Write-Host "   ISP ASN . . . . . . . . . . . . . . : $($ispInfo.IspAs)" -ForegroundColor Yellow
+    Write-Host "   ISP City. . . . . . . . . . . . . . : $($ispInfo.IspCity)" -ForegroundColor Yellow
+    Write-Host "   ISP Region. . . . . . . . . . . . . : $($ispInfo.IspRegion)" -ForegroundColor Yellow
+    Write-Host "   ISP Country . . . . . . . . . . . . : $($ispInfo.IspCountry)" -ForegroundColor Yellow
+    Write-Host "   ISP Location. . . . . . . . . . . . : $($ispInfo.IspLoc)" -ForegroundColor Yellow
+    Write-Host "   ISP Timezone. . . . . . . . . . . . : $($ispInfo.IspTimezone)" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "   Public DNS Server . . . . . . . . : $($ispInfo.DnsIP)" -ForegroundColor Yellow
-    Write-Host "   Public DNS City . . . . . . . . . : $($ispInfo.DnsCity)" -ForegroundColor Yellow
-    Write-Host "   Public DNS Region . . . . . . . . : $($ispInfo.DnsRegion)" -ForegroundColor Yellow
-    Write-Host "   Public DNS Country. . . . . . . . : $($ispInfo.DnsCountry)" -ForegroundColor Yellow
-    Write-Host "   Public DNS Location . . . . . . . : $($ispInfo.DnsLoc)" -ForegroundColor Yellow
-    Write-Host "   Public DNS Org. . . . . . . . . . : $($ispInfo.DnsOrg)" -ForegroundColor Yellow
-    Write-Host "   Public DNS Post Code. . . . . . . : $($ispInfo.DnsPostal)" -ForegroundColor Yellow
-    Write-Host "   Public DNS Timezone . . . . . . . : $($ispInfo.DnsTimezone)" -ForegroundColor Yellow
-    Write-Host "" -ForegroundColor Green
+
 
 }
 
@@ -608,7 +572,7 @@ Write-Host ""
 $groupedInfo = $localInfo | Group-Object InterfaceName
 
 foreach ($group in $groupedInfo) {
-    Write-Host "Interface. . . . . . . . . . . . . . : $($group.Name)" -ForegroundColor Cyan
+    Write-Host "Interface. . . . . . . . . . . . . . . : $($group.Name)" -ForegroundColor Cyan
     Write-Host ""
     
     # Get all IPv4 and IPv6 addresses for this interface
@@ -620,103 +584,122 @@ foreach ($group in $groupedInfo) {
         $firstIPv4 = $ipv4Addresses | Select-Object -First 1
         # Display all IPv4 information
         foreach ($info in $ipv4Addresses) {
-            Write-Host "   Description . . . . . . . . . . . : $($info.InterfaceDescription)" -ForegroundColor Yellow
-            Write-Host "   Media State . . . . . . . . . . . : $($info.MediaConnectionState)" -ForegroundColor Yellow
-            Write-Host "   Connection-specific DNS Suffix  . : $($firstIPv4.DnsSuffix)" -ForegroundColor Yellow
+            Write-Host "   Description . . . . . . . . . . . . : $($info.InterfaceDescription)" -ForegroundColor Yellow
+            Write-Host "   Media State . . . . . . . . . . . . : $($info.MediaConnectionState)" -ForegroundColor Yellow
+            Write-Host "   Connection-specific DNS Suffix  . . : $($firstIPv4.DnsSuffix)" -ForegroundColor Yellow
             # Display Link-local IPv6 Address if exists
             if ($ipv6Addresses) {
-                Write-Host "   Link-local IPv6 Address . . . . . : $($ipv6Addresses.IPAddress -join ', ')" -ForegroundColor Yellow
+                if ($($ipv6Addresses.IPV6Address))
+                {
+                    # 0.4.0.7 Fixed IPv6 separation from Local-link IPv6 Address. Sanitised code, removing whitespaces.
+                    $cleanIPv6 = $ipv6Addresses | Where-Object { $_.IPV6Address } | ForEach-Object {"$($_.IPV6Address.Trim())"}
+                    Write-Host "   IPv6 Address. . . . . . . . . . . . : $($cleanIPv6 -join ', ')" -ForegroundColor Yellow
+                    $cleanIPv6 = $null
+                }
+                if ($($ipv6Addresses.LocalLinkAddress))
+                {
+                    Write-Host "   Link-local IPv6 Address . . . . . . : $($ipv6Addresses.LocalLinkAddress)" -ForegroundColor Yellow
+                }
             }
             If ($info.MediaConnectionState -eq "Disconnected") {
-                Write-Host "   Media Type. . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
-                Write-Host "   Link Speed. . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
+                Write-Host "   Media Type. . . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
+                Write-Host "   Link Speed. . . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
             }
             Elseif($info.MediaConnectionState -eq "Connected") {
-                Write-Host "   Media Type. . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
+                Write-Host "   Media Type. . . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
                 If ($info.PhysicalMediaType -like "*802.11*")
                 {
-                    Write-Host "   WiFi SSID . . . . . . . . . . . . : $($info.wifiSSID)" -ForegroundColor Yellow
-                    Write-Host "   WiFi Key. . . . . . . . . . . . . : $($info.wifiKey)" -ForegroundColor Yellow
+                    Write-Host "   WiFi SSID . . . . . . . . . . . . . : $($info.wifiSSID)" -ForegroundColor Yellow
+                    Write-Host "   WiFi Key. . . . . . . . . . . . . . : $($info.wifiKey)" -ForegroundColor Yellow
                 }
-                Write-Host "   IPv4 Address. . . . . . . . . . . : $($info.IPAddress)" -ForegroundColor Yellow
-                Write-Host "   Subnet Mask . . . . . . . . . . . : $($info.SubnetMask)" -ForegroundColor Yellow
-                Write-Host "   Prefix Length . . . . . . . . . . : $($info.PrefixLength)" -ForegroundColor Yellow
-                Write-Host "   Default Gateway . . . . . . . . . : $($info.DefaultGateway)" -ForegroundColor Yellow
-                Write-Host "   DNS Servers . . . . . . . . . . . : $($info.DnsServers)" -ForegroundColor Yellow
-                Write-Host "   Link Speed. . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
-                Write-Host "   Received Bytes. . . . . . . . . . : $($info.ReceivedBytes) MB" -ForegroundColor Yellow
-                Write-Host "   Sent Bytes. . . . . . . . . . . . : $($info.SentBytes) MB" -ForegroundColor Yellow
-                Write-Host "   Physical Address. . . . . . . . . : $($info.MacAddress)" -ForegroundColor Yellow
-                Write-Host "   DHCPv4 Enabled. . . . . . . . . . : $($info.DhcpEnabledV4)" -ForegroundColor Yellow
-                # Display DHCP variables only if DHCP is enabled
-                if ($info.DhcpEnabledV4 -eq "Yes") {
-                    Write-Host "   DHCPv4 Server . . . . . . . . . . : $($info.DhcpServerV4)" -ForegroundColor Yellow
-                    Write-Host "   Lease Obtained. . . . . . . . . . : $($info.dhcpLeaseObtainedTimeV4)" -ForegroundColor Yellow
-                    Write-Host "   Lease Expires . . . . . . . . . . : $($info.dhcpLeaseTerminatesTimeV4)" -ForegroundColor Yellow
-                    }
-                if ($info.DhcpEnabledV6 -eq "Yes") {
-                    Write-Host "   DHCPv6 Enabled. . . . . . . . . . : $($info.DhcpEnabledV6)" -ForegroundColor Yellow
-                    Write-Host "   DHCPv6 IAID . . . . . . . . . . . : $($info.Dhcpv6Iaid)" -ForegroundColor Yellow
-                    Write-Host "   DHCPv6 Client DUID. . . . . . . . : $($info.Dhcpv6Duid)" -ForegroundColor Yellow
-                    if ($info.dhcpLeaseObtainedTimeV6)
-                    {
-                        Write-Host "   Leasev6 Obtained. . . . . . . . . : $($info.dhcpLeaseObtainedTimeV6)" -ForegroundColor Yellow
-                        Write-Host "   Leasev6 Expires . . . . . . . . . : $($info.dhcpLeaseTerminatesTimeV6)" -ForegroundColor Yellow
-                    }
-                }
-            }
-            Write-Host "   Autoconfiguration Enabled . . . . : $($info.AutoconfigurationEnabled)" -ForegroundColor Yellow
-            Write-Host "   NetBIOS Enabled . . . . . . . . . : $($info.NetbiosEnabled)" -ForegroundColor Yellow
-        }
-    }
-    
-    # Display IPv6 addresses (if any)
-    if ($ipv6Addresses -and !$ipv4Addresses) {
-        $firstIPv6 = $ipv6Addresses | Select-Object -First 1
-        foreach ($info in $ipv6Addresses) {
-            Write-Host "   Description . . . . . . . . . . . : $($info.InterfaceDescription)" -ForegroundColor Yellow
-            Write-Host "   Media State . . . . . . . . . . . : $($info.MediaConnectionState)" -ForegroundColor Yellow
-            If ($info.MediaConnectionState -eq "Disconnected") {
-                Write-Host "   Connection-specific DNS Suffix  . : $($firstIPv6.DnsSuffix)" -ForegroundColor Yellow
-                Write-Host "   Media Type. . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
-                Write-Host "   Link Speed. . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
-            }
-            Elseif($info.MediaConnectionState -eq "Connected") {
-                Write-Host "   Link-local IPv6 Address . . . . . : $($info.IPAddress)" -ForegroundColor Yellow
-                Write-Host "   Media Type. . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
-                If ($info.PhysicalMediaType -like "*802.11*")
-                {
-                    Write-Host "   WiFi SSID . . . . . . . . . . . . : $($info.wifiSSID)" -ForegroundColor Yellow
-                    Write-Host "   WiFi Key. . . . . . . . . . . . . : $($info.wifiKey)" -ForegroundColor Yellow
-                }
-                Write-Host "   Subnet Mask . . . . . . . . . . . : $($info.SubnetMask)" -ForegroundColor Yellow
-                Write-Host "   Prefix Length . . . . . . . . . . : $($info.PrefixLength)" -ForegroundColor Yellow
-                Write-Host "   Default Gateway . . . . . . . . . : $($info.DefaultGateway)" -ForegroundColor Yellow
-                Write-Host "   DNS Servers . . . . . . . . . . . : $($info.DnsServers)" -ForegroundColor Yellow
-                Write-Host "   Link Speed. . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
-                Write-Host "   Received Bytes. . . . . . . . . . : $($info.ReceivedBytes)" -ForegroundColor Yellow
-                Write-Host "   Sent Bytes. . . . . . . . . . . . : $($info.SentBytes)" -ForegroundColor Yellow
-                Write-Host "   Physical Address. . . . . . . . . : $($info.MacAddress)" -ForegroundColor Yellow
+                Write-Host "   IPv4 Address. . . . . . . . . . . . : $($info.IPAddress)" -ForegroundColor Yellow
+                Write-Host "   Subnet Mask . . . . . . . . . . . . : $($info.SubnetMask)" -ForegroundColor Yellow
+                Write-Host "   Prefix Length . . . . . . . . . . . : $($info.PrefixLength)" -ForegroundColor Yellow
+                Write-Host "   Default Gateway . . . . . . . . . . : $($info.DefaultGateway)" -ForegroundColor Yellow
+                Write-Host "   DNS Servers . . . . . . . . . . . . : $($info.DnsServers)" -ForegroundColor Yellow
+                Write-Host "   Link Speed. . . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
+                Write-Host "   Received Bytes. . . . . . . . . . . : $($info.ReceivedBytes) MB" -ForegroundColor Yellow
+                Write-Host "   Sent Bytes. . . . . . . . . . . . . : $($info.SentBytes) MB" -ForegroundColor Yellow
+                Write-Host "   Physical Address. . . . . . . . . . : $($info.MacAddress)" -ForegroundColor Yellow
                 Write-Host "   DHCPv4 Enabled. . . . . . . . . . . : $($info.DhcpEnabledV4)" -ForegroundColor Yellow
                 # Display DHCP variables only if DHCP is enabled
                 if ($info.DhcpEnabledV4 -eq "Yes") {
                     Write-Host "   DHCPv4 Server . . . . . . . . . . . : $($info.DhcpServerV4)" -ForegroundColor Yellow
                     Write-Host "   Lease Obtained. . . . . . . . . . . : $($info.dhcpLeaseObtainedTimeV4)" -ForegroundColor Yellow
-                    Write-Host "   Lease Expires . . . . . . . . . . . : $($info.dhcpLeaseTerminatesTimev4)" -ForegroundColor Yellow
-                }
+                    Write-Host "   Lease Expires . . . . . . . . . . . : $($info.dhcpLeaseTerminatesTimeV4)" -ForegroundColor Yellow
+                    }
                 if ($info.DhcpEnabledV6 -eq "Yes") {
-                    Write-Host "   DHCPv6 Enabled. . . . . . . . . . : $($info.DhcpEnabledV6)" -ForegroundColor Yellow
-                    Write-Host "   DHCPv6 IAID . . . . . . . . . . . : $($info.Dhcpv6Iaid)" -ForegroundColor Yellow
-                    Write-Host "   DHCPv6 Client DUID. . . . . . . . : $($info.Dhcpv6Duid)" -ForegroundColor Yellow
+                    Write-Host "   DHCPv6 Enabled. . . . . . . . . . . : $($info.DhcpEnabledV6)" -ForegroundColor Yellow
+                    Write-Host "   DHCPv6 IAID . . . . . . . . . . . . : $($info.Dhcpv6Iaid)" -ForegroundColor Yellow
+                    Write-Host "   DHCPv6 Client DUID. . . . . . . . . : $($info.Dhcpv6Duid)" -ForegroundColor Yellow
                     if ($info.dhcpLeaseObtainedTimeV6)
                     {
-                        Write-Host "   Leasev6 Obtained. . . . . . . . . : $($info.dhcpLeaseObtainedTimeV6)" -ForegroundColor Yellow
-                        Write-Host "   Leasev6 Expires . . . . . . . . . : $($info.dhcpLeaseTerminatesTimeV6)" -ForegroundColor Yellow
+                        Write-Host "   Leasev6 Obtained. . . . . . . . . . : $($info.dhcpLeaseObtainedTimeV6)" -ForegroundColor Yellow
+                        Write-Host "   Leasev6 Expires . . . . . . . . . . : $($info.dhcpLeaseTerminatesTimeV6)" -ForegroundColor Yellow
                     }
                 }
             }
-        Write-Host "   Autoconfiguration Enabled . . . . : $($info.AutoconfigurationEnabled)" -ForegroundColor Yellow
-        Write-Host "   NetBIOS Enabled . . . . . . . . . : $($info.NetbiosEnabled)" -ForegroundColor Yellow
+            Write-Host "   Autoconfiguration Enabled . . . . . : $($info.AutoconfigurationEnabled)" -ForegroundColor Yellow
+            Write-Host "   NetBIOS Enabled . . . . . . . . . . : $($info.NetbiosEnabled)" -ForegroundColor Yellow
+        }
+    }
+    
+    # Display IPv6 addresses that do not have an IPv4 shared adapter (if any)
+    if ($ipv6Addresses -and !$ipv4Addresses) {
+        $firstIPv6 = $ipv6Addresses | Select-Object -First 1
+        foreach ($info in $ipv6Addresses) {
+            Write-Host "   Description . . . . . . . . . . . . : $($info.InterfaceDescription)" -ForegroundColor Yellow
+            Write-Host "   Media State . . . . . . . . . . . . : $($info.MediaConnectionState)" -ForegroundColor Yellow
+            If ($info.MediaConnectionState -eq "Disconnected") {
+                Write-Host "   Connection-specific DNS Suffix  . . : $($firstIPv6.DnsSuffix)" -ForegroundColor Yellow
+                Write-Host "   Media Type. . . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
+                Write-Host "   Link Speed. . . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
+            }
+            Elseif($info.MediaConnectionState -eq "Connected") {
+                If ($info.IPV6Address)
+                {
+                    $cleanIPv6 = ($info.IPV6Address | Where-Object { $_ } | ForEach-Object { $_.TrimStart() })
+                    Write-Host "   IPv6 Address. . . . . . . . . . . . : $($cleanIPv6 -join ', ')" -ForegroundColor Yellow
+                    $cleanIPv6 = $null
+                }
+                If ($info.LocalLinkAddress)
+                {
+                    Write-Host "   Link-local IPv6 Addres . . . . . . : $($info.LocalLinkAddress)" -ForegroundColor Yellow
+                }
+                Write-Host "   Media Type. . . . . . . . . . . . . : $($info.PhysicalMediaType)" -ForegroundColor Yellow
+                If ($info.PhysicalMediaType -like "*802.11*")
+                {
+                    Write-Host "   WiFi SSID . . . . . . . . . . . . . : $($info.wifiSSID)" -ForegroundColor Yellow
+                    Write-Host "   WiFi Key. . . . . . . . . . . . . . : $($info.wifiKey)" -ForegroundColor Yellow
+                }
+                Write-Host "   Subnet Mask . . . . . . . . . . . . : $($info.SubnetMask)" -ForegroundColor Yellow
+                Write-Host "   Prefix Length . . . . . . . . . . . : $($info.PrefixLength)" -ForegroundColor Yellow
+                Write-Host "   Default Gateway . . . . . . . . . . : $($info.DefaultGateway)" -ForegroundColor Yellow
+                Write-Host "   DNS Servers . . . . . . . . . . . . : $($info.DnsServers)" -ForegroundColor Yellow
+                Write-Host "   Link Speed. . . . . . . . . . . . . : $($info.LinkSpeed)" -ForegroundColor Yellow
+                Write-Host "   Received Bytes. . . . . . . . . . . : $($info.ReceivedBytes)" -ForegroundColor Yellow
+                Write-Host "   Sent Bytes. . . . . . . . . . . . . : $($info.SentBytes)" -ForegroundColor Yellow
+                Write-Host "   Physical Address. . . . . . . . . . : $($info.MacAddress)" -ForegroundColor Yellow
+                Write-Host "   DHCPv4 Enabled. . . . . . . . . . . . : $($info.DhcpEnabledV4)" -ForegroundColor Yellow
+                # Display DHCP variables only if DHCP is enabled
+                if ($info.DhcpEnabledV4 -eq "Yes") {
+                    Write-Host "   DHCPv4 Server . . . . . . . . . . . . : $($info.DhcpServerV4)" -ForegroundColor Yellow
+                    Write-Host "   Lease Obtained. . . . . . . . . . . . : $($info.dhcpLeaseObtainedTimeV4)" -ForegroundColor Yellow
+                    Write-Host "   Lease Expires . . . . . . . . . . . . : $($info.dhcpLeaseTerminatesTimev4)" -ForegroundColor Yellow
+                }
+                if ($info.DhcpEnabledV6 -eq "Yes") {
+                    Write-Host "   DHCPv6 Enabled. . . . . . . . . . . : $($info.DhcpEnabledV6)" -ForegroundColor Yellow
+                    Write-Host "   DHCPv6 IAID . . . . . . . . . . . . : $($info.Dhcpv6Iaid)" -ForegroundColor Yellow
+                    Write-Host "   DHCPv6 Client DUID. . . . . . . . . : $($info.Dhcpv6Duid)" -ForegroundColor Yellow
+                    if ($info.dhcpLeaseObtainedTimeV6)
+                    {
+                        Write-Host "   Leasev6 Obtained. . . . . . . . . . : $($info.dhcpLeaseObtainedTimeV6)" -ForegroundColor Yellow
+                        Write-Host "   Leasev6 Expires . . . . . . . . . . : $($info.dhcpLeaseTerminatesTimeV6)" -ForegroundColor Yellow
+                    }
+                }
+            }
+        Write-Host "   Autoconfiguration Enabled . . . . . : $($info.AutoconfigurationEnabled)" -ForegroundColor Yellow
+        Write-Host "   NetBIOS Enabled . . . . . . . . . . : $($info.NetbiosEnabled)" -ForegroundColor Yellow
         }
     }
     

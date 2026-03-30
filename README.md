@@ -110,6 +110,21 @@ ipconfig2 [/version]
 
 ## Changelog
 
+### 0.4.0.7 - 30-Mar-2026
+* This release brings performance improvements.
+* Removed redundant Get-Isp nested function inside MAIN Get-AllSystemInfo function. Reducing unnecessary threads and improving performance.
+* Applied multi-threading jobs for Get-Metadata nested function inside Get-AllSystemInfo parent function. This may improve performance, as it is the longest execution time element in the source code atm.
+* Omitted redundant API call to "https://ipinfo.io/json". Improving performance.
+* Optimised Get-Isp return array, to match new REST API telemetry.
+* Optimised Get-Metadata function to use $tcpipParams.PSObject memory instead of four Get-ItemProperty system registry calls. Improved performance.
+* Resolved public DNS retrieval. Now reflecting accurately thanks to whoami.akamai.net.
+* Fixed $ip conflict in both IPv4 and IPv6 contexts, risk of leak. Now using $ipV4 and $ipV6.
+* Fixed duplicate data in Local-link IPv6 Address field. Separated Local-link from manual address for IPv6. New if/else conditions for display of manual IPv6 address.
+* Performed sanitisation using $cleanIPv6 to remove whitespace(s).
+* Added new AddressState data point in return arrays for both IPv4 and IPv6 for (Preferred/Deprecated) reporting. Will need to utilise this in future releases.
+* Omitted redundant Public DNS Server section.
+* Updated output tables to match new categories and return variables.
+* Code formatting, organisation and tweaks.
 ### 0.4.0.6 - 30-Mar-2026
 * Significant performance boost by tweaking MAIN Get-AllSystemInfo function omitting nested jobs/threads. Using return arrays over vars.
 ### 0.4.0.5 - 30-Mar-2026
