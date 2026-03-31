@@ -20,31 +20,34 @@ It is still experimental, some features may or may not work depending on your en
 
 ## Features
 
-### System Metadata
-- Host Name
-- Primary DNS Suffix
-- Network Profile Name
-- IP Routing Status
-- WINS Proxy Status
-- DNS Suffix Search List
-
 ### Public Network Information
 - Public IPv4 Address (via external REST API)
 - ISP Name and Organisation
 - ISP Location (Geolocation)
 - Public DNS Server
-- Public DNS Location (Geolocation)
 - DNS Provider Organisation
-- Timezone and Geolocation (where available)
+- Timezone
+
+### System Metadata
+- Host Name
+- Primary DNS Suffix
+- Network Profile Name
+- Network Profile Type
+- IP Routing Status
+- WINS Proxy Status
+- DNS Suffix Search List
+
+### Network Operations
+- DHCP Release switch.
+- DHCP Renew switch.
 
 ### Network Interface Reporting
 - Interface Name
 - Interface Description
 - Media State (Connected / Disconnected)
 - Media Type (Ethernet, Wi-Fi, Bluetooth, Virtual)
-- Link Speed
 
-### Addressing
+### IP Addressing
 - IPv4 Address
 - IPv6 Address
 - Subnet Mask
@@ -64,7 +67,8 @@ It is still experimental, some features may or may not work depending on your en
 - DHCPv6 IAID
 - DHCPv6 Client DUID
 
-### Network Activity Insight
+### Network Telemetry
+- Link Speed (Mbps / Gbps)
 - Received Bytes (MB)
 - Sent Bytes (MB)
 
@@ -79,9 +83,6 @@ It is still experimental, some features may or may not work depending on your en
 
 ## To-Do
  - Output to TXT/CSV feature.
- - Utilise paramaters.
- - Create switches/flags for more/less output.
- - Improve performance.
 
 ---
 
@@ -103,13 +104,44 @@ IPConfig2 prioritises **depth of information over raw execution speed**, providi
 
 cmd ipconfig2.exe
 
-powershell.\ipconfig2.ps1
+powershell .\ipconfig2.ps1
 
 ## Parameter
-ipconfig2 [/version]
+```powershell
+ipconfig2 [/release] [/renew] [/version]
+```
+
+```cmd
+ipconfig2 [/release] [/renew] [/version]
+```
+
+```
+release         = Release DHCP IP addresses on connected local network interface cards on system with DHCP enabled.
+renew           = Renew DHCP IP Address on connectedlocal network interface cards on system with DHCP enabled.
+version         = Get utility version and attribution metadata.
+```
 
 ## Changelog
 
+### 0.5.0.0 - 01-Apr-2026
+* April Fool's Day major update, this release is no joke!
+* New feature: ipconfig2 /release switch to release DHCP leases on local system. Factored in new function called Invoke-IPConfigRelease. This is independent from Windows native ipconfig and a viable fallback feature.
+* New feature: ipconfig2 /renew switch to renew DHCP IP addresses on local system. Factored in new function called Invoke-IPConfigRenew. This is independent from Windows native ipconfig and a viable fallback feature.
+* Now supporting NICs with multiple IP addresses! This was not working previously due to output syntax.
+* Now displays hidden DHCP 169.254 addresses.
+* Implemented new line break concatenation for multiple output values using (-join "`n                                         "). This now grants streamline output structure for elements such as NIC DNS server.
+* Refactored output tables, resolving multiple duplication bugs and hidden values.
+* Resolved duplicate NIC rows when releasing DHCP IP.
+* Resolved value duplication in metadata output when releasing DHCP IP. By filtering basic using ( | Select-Object -First 1) in metadata output table.
+* Implemented start-sleep timer after IP release to compile output table correctly.
+* Significantly improved IP release/renew performance times within Invoke functions by filtering with where-object logic: $_.InterfaceIndex -eq $($adapter.IfIndex). More efficient.
+* Appended IPv4 and IPv6 distinguishment for subnet prefix length.
+* Sort-object when releasing/renewing IPs by InterfaceMetric number.
+* Fixed IP release by omitting logic IPEnabled, ensuring even disconnected NICs drop their DHCP lease.
+* Numerous bug fixes.
+### 0.4.1.2 - 31-Mar-2026
+* Cosmetic change: renamed Ethernet Adapter section to Network Interface Card.
+* Cosmetic change: renamed Network Profile Category to Network Profile Type.
 ### 0.4.1.1 - 31-Mar-2026
 * Fixed network profile category not appearing in certain conditions.
 * Appended Internet connectivity checks in metadata.
@@ -232,4 +264,4 @@ License: MIT
 
 Compiled as an EXE using [MScholtes/PS2EXE](https://github.com/MScholtes/PS2EXE)
 
-Public IP and Public DNS retrieval using REST API via free providers [ip-api.com](https://ip-api.com). Licensing is subject to their terms and conditions.
+Public IP and Public DNS retrieval using REST API via free provider [ip-api.com](https://ip-api.com). Licensing is subject to their terms and conditions.
