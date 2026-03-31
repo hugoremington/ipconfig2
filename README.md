@@ -102,9 +102,10 @@ IPConfig2 prioritises **depth of information over raw execution speed**, providi
 
 ## Usage
 
+powershell .\ipconfig2.ps1
+
 cmd ipconfig2.exe
 
-powershell .\ipconfig2.ps1
 
 ## Parameter
 ```powershell
@@ -112,8 +113,8 @@ ipconfig2 [/release] [/renew] [/version]
 ```
 
 ```
-release         = Release DHCP IP addresses on connected local network interface cards on system with DHCP enabled.
-renew           = Renew DHCP IP Address on connectedlocal network interface cards on system with DHCP enabled.
+release         = Release DHCP IP addresses on local network interface cards on system with DHCP enabled.
+renew           = Renew DHCP IP Address on local network interface cards on system with DHCP enabled.
 version         = Get utility version and attribution metadata.
 ```
 
