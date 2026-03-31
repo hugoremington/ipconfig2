@@ -111,10 +111,6 @@ powershell .\ipconfig2.ps1
 ipconfig2 [/release] [/renew] [/version]
 ```
 
-```cmd
-ipconfig2 [/release] [/renew] [/version]
-```
-
 ```
 release         = Release DHCP IP addresses on connected local network interface cards on system with DHCP enabled.
 renew           = Renew DHCP IP Address on connectedlocal network interface cards on system with DHCP enabled.
