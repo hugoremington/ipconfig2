@@ -120,6 +120,9 @@ version         = Get utility version and attribution metadata.
 
 ## Changelog
 
+### 0.5.0.1 - 01-Apr-2026
+* Minor cosmetic bug fix with line spacing before/after release/renew commands.
+* Improved cosmetic line spacing after splash screen, more consistent with entire script.
 ### 0.5.0.0 - 01-Apr-2026
 * April Fool's Day major update, this release is no joke!
 * New feature: ipconfig2 /release switch to release DHCP leases on local system. Factored in new function called Invoke-IPConfigRelease. This is independent from Windows native ipconfig and a viable fallback feature.

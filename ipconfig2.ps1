@@ -1,11 +1,14 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "0.5.0.0"
+$version = "0.5.0.1"
 $date = "01-Apr-2026"
 
 # Splash screen
 Write-Host ""
 Write-Host "Windows IP Configuration 2.0" -ForegroundColor Yellow
+Write-Host ""
+# Splash screen end.
+
 # Check for /author switch
 if ($args -contains "/version")
 {
@@ -59,6 +62,7 @@ function Invoke-IPConfigRelease {
     catch {
         Write-Host "Failed to release IP configuration: $($_.Exception.Message)" -ForegroundColor Red
     }
+    Write-Host ""
 }
 
 function Invoke-IPConfigRenew {
@@ -81,6 +85,7 @@ function Invoke-IPConfigRenew {
     catch {
         Write-Host "Failed to renew IP configuration: $($_.Exception.Message)" -ForegroundColor Red
     }
+    Write-Host ""
 }
 
 <# Get args switches for ipconfig2 release and renew #>
@@ -593,8 +598,6 @@ $allInfo = Get-AllSystemInfo
 $metadata = $allInfo.Metadata
 
 <# DISPLAY OUTPUT START #>
-# Line space
-Write-Host ""
 Write-Host "   Host Name . . . . . . . . . . . . . : $($metadata.Hostname -join ', ')" -ForegroundColor Yellow
 Write-Host "   Primary Dns Suffix  . . . . . . . . : $($metadata.primaryDnsSuffix -join ', ')" -ForegroundColor Yellow
 Write-Host "   Network Profile Name. . . . . . . . : $($metadata.NetProfileName | Select-Object -First 1)" -ForegroundColor Yellow
