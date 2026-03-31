@@ -136,7 +136,7 @@ version         = Get utility version and attribution metadata.
 * Implemented start-sleep timer after IP release to compile output table correctly.
 * Significantly improved IP release/renew performance times within Invoke functions by filtering with where-object logic: $_.InterfaceIndex -eq $($adapter.IfIndex). More efficient.
 * Appended IPv4 and IPv6 distinguishment for subnet prefix length.
-* Sort-object when releasing/renewing IPs by InterfaceMetric number.
+* Sort-object when releasing/renewing IPs by InterfaceMetric number. This now resolves the bug where NICs would sequentially failover and not be scoped for DHCP release.
 * Fixed IP release by omitting logic IPEnabled, ensuring even disconnected NICs drop their DHCP lease.
 * Numerous bug fixes.
 ### 0.4.1.2 - 31-Mar-2026
