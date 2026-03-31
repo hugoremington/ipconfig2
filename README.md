@@ -2,7 +2,7 @@
 
 IPConfig2 is an enhanced Windows network configuration utility built in PowerShell.
 
-It extends the native `ipconfig` command by combining **local network adapter data** with **public IP, ISP, and DNS context** into a single CLI output.
+It extends the native `ipconfig` command by combining local network adapter data with public IP, ISP, and DNS context into a single CLI output.
 
 The tool provides a consolidated, human-readable snapshot of a system’s current network state across Ethernet, Wi-Fi, Bluetooth PAN, and virtual interfaces.
 
@@ -96,7 +96,7 @@ Runtime depends on:
 - Number of network interfaces
 - System performance
 
-IPConfig2 prioritises **depth of information over raw execution speed**, providing significantly more context than native `ipconfig`.
+IPConfig2 prioritises depth of information over raw execution speed, providing significantly more context than native `ipconfig`.
 
 ---
 
