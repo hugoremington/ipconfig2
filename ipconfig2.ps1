@@ -13,6 +13,7 @@ Write-Host ""
 if ($args -contains "/version")
 {
     Write-Host "Author: $author | Version: $version | Release date: $date" -ForegroundColor Yellow
+    Write-Host ""
 }
 
 
