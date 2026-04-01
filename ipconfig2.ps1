@@ -1,6 +1,6 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "0.5.0.2"
+$version = "0.5.0.3"
 $date = "01-Apr-2026"
 
 # Splash screen
@@ -719,7 +719,7 @@ foreach ($group in $groupedInfo) {
         Write-Host "   DNS Servers . . . . . . . . . . . . : $($firstIPv4.DnsServers -split ', ' -join "`n                                         ")" -ForegroundColor Yellow
         Write-Host "   Link Speed. . . . . . . . . . . . . : $($firstIPv4.LinkSpeed)" -ForegroundColor Yellow
         # If connected show telemetry.
-        If ($firstIPv4.MediaConnectionState -eq "Connected")
+        If ($($firstIPv4.ReceivedBytes) -gt 0 -or $($firstIPv4.SentBytes -gt 0))
         {
             Write-Host "   Received Bytes. . . . . . . . . . . : $($firstIPv4.ReceivedBytes) MB" -ForegroundColor Yellow
             Write-Host "   Sent Bytes. . . . . . . . . . . . . : $($firstIPv4.SentBytes) MB" -ForegroundColor Yellow
@@ -794,7 +794,7 @@ foreach ($group in $groupedInfo) {
         Write-Host "   DNS Servers . . . . . . . . . . . . : $($firstIPv6.DnsServers -split ', ' -join "`n                                         ")" -ForegroundColor Yellow
         Write-Host "   Link Speed. . . . . . . . . . . . . : $($firstIPv6.LinkSpeed)" -ForegroundColor Yellow
         # If NIC connected show telemetry.
-        If ($firstIPv6.MediaConnectionState -eq "Connected")
+        If ($($firstIPv6.ReceivedBytes) -gt 0 -or $($firstIPv6.SentBytes -gt 0))
         {
             Write-Host "   Received Bytes. . . . . . . . . . . : $($firstIPv6.ReceivedBytes)" -ForegroundColor Yellow
             Write-Host "   Sent Bytes. . . . . . . . . . . . . : $($firstIPv6.SentBytes)" -ForegroundColor Yellow

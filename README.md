@@ -119,6 +119,9 @@ version         = Get utility version and attribution metadata.
 
 ## Changelog
 
+### 0.5.0.3 - 01-Apr-2026
+* Changed the conditions for displaying received/sent bytes to if greater than zero, rather than if media state is connected. Useful for observing stats retrospectively on disconnected interfaces.
+* This also fixes output for missing data point interfaces such as Bluetooth that do not have this telemetry yet.
 ### 0.5.0.2 - 01-Apr-2026
 * Improved DHCP release/renew functions to use modern CimInstance methods. Retained classic WMIObject methods as a fallback using try/catch blocks.
 * Improved output table even more. Now more efficient and consistent with less foreach loops. 
