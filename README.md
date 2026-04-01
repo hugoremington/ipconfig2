@@ -88,15 +88,14 @@ It is still experimental, some features may or may not work depending on your en
 
 ## Performance Notes
 
-- PowerShell (`.ps1`) execution: ~3–5 seconds  
-- Compiled executable (`PS2EXE`): ~5–10 seconds  
+- ~5–10 seconds  
 
 Runtime depends on:
 - External API response time (public IP / DNS)
 - Number of network interfaces
 - System performance
 
-IPConfig2 prioritises depth of information over raw execution speed, providing significantly more context than native `ipconfig`.
+IPConfig2 prioritises comprehensive information over raw execution speed, providing significantly more context than native `ipconfig`.
 
 ---
 
@@ -122,7 +121,7 @@ version         = Get utility version and attribution metadata.
 
 ### 0.5.0.2 - 01-Apr-2026
 * Improved DHCP release/renew functions to use modern CimInstance methods. Retained classic WMIObject methods as a fallback using try/catch blocks.
-* Improved output table even more. No more efficient and consistent with less foreach loops. 
+* Improved output table even more. Now more efficient and consistent with less foreach loops. 
 * More output now visible irrespective to media state, such as physical MAC address, dhcp, and more.
 * Improved metadata table which now dynamically displays multiple network profiles where available.
 * Slight formatting tweaks.
