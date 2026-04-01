@@ -1,6 +1,6 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "0.5.0.1"
+$version = "0.5.0.2"
 $date = "01-Apr-2026"
 
 # Splash screen
@@ -38,21 +38,30 @@ function Convert-PrefixToSubnetMask {
 
 function Invoke-IPConfigRelease {  
     try {
-        # Try Wmi command first (native Windows)
+        # Try CimInstance method first (native PowerShell)
         Write-Host "Releasing DHCP IP addresses..." -ForegroundColor Yellow
         $adapters = Get-NetIPInterface | Where-Object { $_.Dhcp -eq "Enabled" -and $_.InterfaceAlias -notlike "*Loopback*" } | Sort-Object -Property InterfaceMetric
             foreach ($adapter in $adapters)
             {
-                try {
-                    # Using WMI for release.
-                    $releaseCmd = Get-WmiObject Win32_NetworkAdapterConfiguration |
-                    Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) -and $_.DHCPEnabled -eq $True } |
-                    ForEach-Object { $_.ReleaseDHCPLease() }
+                try {                  
+                    # Using modern CimInstance for rlease.
+                    $releaseCmd = Get-CimInstance Win32_NetworkAdapterConfiguration | Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) -and $_.DHCPEnabled -eq $True } | Invoke-CimMethod -MethodName "ReleaseDHCPLease"
                     $releaseCmd | Out-Null
                     Write-Host "IP successfully released on $($adapter.InterfaceAlias) $($adapter.AddressFamily)" -ForegroundColor Yellow
                 }
                 catch {
-                    Write-Host "Failed to release IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) : $($_.Exception.Message)" -ForegroundColor Red
+                    Write-Host "Failed to release IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) : $($_.Exception.Message)" -ForegroundColor Orange
+                    Write-Host "Retrying using classic WMI operation." -ForegroundColor Yellow
+                    try {
+                        # Using classing WmiObject for release.
+                        $releaseCmd = Get-WmiObject Win32_NetworkAdapterConfiguration |
+                        Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) -and $_.DHCPEnabled -eq $True } |
+                        ForEach-Object { $_.ReleaseDHCPLease() }
+                        $releaseCmd | Out-Null
+                    }
+                    catch {
+                        Write-Host "Failed to release IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) : $($_.Exception.Message)" -ForegroundColor Red
+                    } 
                 }
                 # Start sleep to prevent NIC failover.
                 #Start-Sleep 3
@@ -68,18 +77,29 @@ function Invoke-IPConfigRelease {
 
 function Invoke-IPConfigRenew {
     try {
+        # Try CimInstance method first (native PowerShell)
+        Write-Host "Renewing DHCP IP addresses..." -ForegroundColor Yellow
         $adapters = Get-NetIPInterface | Where-Object { $_.Dhcp -eq "Enabled" -and $_.InterfaceAlias -notlike "*Loopback*" } | Sort-Object -Property InterfaceMetric
         foreach ($adapter in $adapters) {
             try {
-                # Using netsh for renew
-                $renewCmd = Get-WmiObject Win32_NetworkAdapterConfiguration |
-                Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) <#-and $_.IPEnabled -eq $True #>-and $_.DHCPEnabled -eq $True } |
-                ForEach-Object { $_.RenewDHCPLease() }
+                # Using modern CimInstance for renew.
+                $renewCmd = Get-CimInstance Win32_NetworkAdapterConfiguration | Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) <#-and $_.IPEnabled -eq $True #>-and $_.DHCPEnabled -eq $True } | Invoke-CimMethod -MethodName "RenewDHCPLease"
                 $renewCmd | Out-Null
                 Write-Host "IP successfully renewed on $($adapter.InterfaceAlias) $($adapter.AddressFamily)" -ForegroundColor Yellow
             }
             catch {
-                Write-Host "Failed to renew IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) : $($_.Exception.Message)" -ForegroundColor Red
+                Write-Host "Failed to renew IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) : $($_.Exception.Message)" -ForegroundColor Orange
+                Write-Host "Retrying using classic WMI operation." -ForegroundColor Yellow
+                try {
+                    # Using classing WmiObject for renew.
+                    $renewCmd = Get-WmiObject Win32_NetworkAdapterConfiguration |
+                    Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) -and $_.DHCPEnabled -eq $True } |
+                    ForEach-Object { $_.RenewDHCPLease() }
+                    $renewCmd | Out-Null
+                }
+                catch {
+                    Write-Host "Failed to renew IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) : $($_.Exception.Message)" -ForegroundColor Red
+                }
             }
         }
     }
@@ -105,6 +125,10 @@ if ($args -contains "/renew")
 function Get-AllSystemInfo {
     # $metadataJob = Start-Job -ScriptBlock {
         function Get-Metadata {
+            $netProfileName = $null
+            $netProfileCategory = $null
+            $netIPv4Connectivity = $null
+            $netIPv6Connectivity = $null
             $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
 
             # Fast local value
@@ -166,10 +190,10 @@ function Get-AllSystemInfo {
             return [PSCustomObject]@{
                 Hostname            = $hostname
                 primaryDnsSuffix    = $primaryDnsSuffix
-                NetProfileName      = $netProfileName
-                NetProfileCategory  = $netProfileCategory
-                NetIPv4Connectivity = $netIPv4Connectivity
-                NetIPv6Connectivity = $netIPv6Connectivity
+                NetProfileName      = $netProfileName | Select-Object -Unique
+                NetProfileCategory  = $netProfileCategory | Select-Object -Unique
+                NetIPv4Connectivity = $netIPv4Connectivity | Select-Object -Unique
+                NetIPv6Connectivity = $netIPv6Connectivity | Select-Object -Unique
                 IPRoutingEnabled    = $ipRoutingEnabled
                 WINSProxyEnabled    = $winsProxyEnabled
                 DNSSuffixSearchList = $dnsSuffixSearchList
@@ -599,15 +623,15 @@ $allInfo = Get-AllSystemInfo
 $metadata = $allInfo.Metadata
 
 <# DISPLAY OUTPUT START #>
-Write-Host "   Host Name . . . . . . . . . . . . . : $($metadata.Hostname -join ', ')" -ForegroundColor Yellow
-Write-Host "   Primary Dns Suffix  . . . . . . . . : $($metadata.primaryDnsSuffix -join ', ')" -ForegroundColor Yellow
-Write-Host "   Network Profile Name. . . . . . . . : $($metadata.NetProfileName | Select-Object -First 1)" -ForegroundColor Yellow
-Write-Host "   Network Profile Type. . . . . . . . : $($metadata.NetProfileCategory | Select-Object -First 1)" -ForegroundColor Yellow
+Write-Host "   Host Name . . . . . . . . . . . . . : $($metadata.Hostname -join "`n                                         ")" -ForegroundColor Yellow
+Write-Host "   Primary Dns Suffix  . . . . . . . . : $($metadata.primaryDnsSuffix -join "`n                                         ")" -ForegroundColor Yellow
+Write-Host "   Network Profile Name. . . . . . . . : $($metadata.NetProfileName -join "`n                                         ")" -ForegroundColor Yellow
+Write-Host "   Network Profile Type. . . . . . . . : $($metadata.NetProfileCategory -join "`n                                         ")" -ForegroundColor Yellow
 Write-Host "   IP Routing Enabled. . . . . . . . . : $($metadata.IPRoutingEnabled)" -ForegroundColor Yellow
 Write-Host "   WINS Proxy Enabled. . . . . . . . . : $($metadata.WINSProxyEnabled)" -ForegroundColor Yellow
-Write-Host "   DNS Suffix Search List. . . . . . . : $($metadata.DNSSuffixSearchList -join ', ')" -ForegroundColor Yellow
-Write-Host "   IPv4 Connectivity . . . . . . . . . : $($metadata.NetIPv4Connectivity | Select-Object -First 1)" -ForegroundColor Yellow
-Write-Host "   IPv6 Connectivity . . . . . . . . . : $($metadata.NetIPv6Connectivity | Select-Object -First 1)" -ForegroundColor Yellow
+Write-Host "   DNS Suffix Search List. . . . . . . : $($metadata.DNSSuffixSearchList -join "`n                                         ")" -ForegroundColor Yellow
+Write-Host "   IPv4 Connectivity . . . . . . . . . : $($metadata.NetIPv4Connectivity -join "`n                                         ")" -ForegroundColor Yellow
+Write-Host "   IPv6 Connectivity . . . . . . . . . : $($metadata.NetIPv6Connectivity -join "`n                                         ")" -ForegroundColor Yellow
 Write-Host ""
 
 # v0.4.0.1 new Get-ISP Function
@@ -619,17 +643,17 @@ if ($IspInfo)
     # Display information
     Write-Host "Public IP Address" -ForegroundColor Green
     Write-Host ""
-    Write-Host "   Public IPv4 Address . . . . . . . . : $($ispInfo.IspIP -join ', ')" -ForegroundColor Yellow
-    Write-Host "   Public DNS Server . . . . . . . . . : $($ispInfo.DnsIP -join ', ')" -ForegroundColor Yellow
-    Write-Host "   ISP Name. . . . . . . . . . . . . . : $($ispInfo.IspName -join ', ')" -ForegroundColor Yellow
-    Write-Host "   ISP Organisation. . . . . . . . . . : $($ispInfo.IspOrg -join ', ')" -ForegroundColor Yellow
-    Write-Host "   ISP ASN . . . . . . . . . . . . . . : $($ispInfo.IspAs -join ', ')" -ForegroundColor Yellow
-    Write-Host "   ISP City. . . . . . . . . . . . . . : $($ispInfo.IspCity -join ', ')" -ForegroundColor Yellow
-    Write-Host "   ISP Region. . . . . . . . . . . . . : $($ispInfo.IspRegion -join ', ')" -ForegroundColor Yellow
-    Write-Host "   ISP Country . . . . . . . . . . . . : $($ispInfo.IspCountry -join ', ')" -ForegroundColor Yellow
-    Write-Host "   ISP ZIP Code. . . . . . . . . . . . : $($ispInfo.IspZip -join ', ')" -ForegroundColor Yellow
-    Write-Host "   ISP Location. . . . . . . . . . . . : $($ispInfo.IspLoc -join ', ')" -ForegroundColor Yellow
-    Write-Host "   ISP Timezone. . . . . . . . . . . . : $($ispInfo.IspTimezone -join ', ')" -ForegroundColor Yellow
+    Write-Host "   Public IPv4 Address . . . . . . . . : $($ispInfo.IspIP -join "`n                                         ")" -ForegroundColor Yellow
+    Write-Host "   Public DNS Server . . . . . . . . . : $($ispInfo.DnsIP -join "`n                                         ")" -ForegroundColor Yellow
+    Write-Host "   ISP Name. . . . . . . . . . . . . . : $($ispInfo.IspName -join "`n                                         ")" -ForegroundColor Yellow
+    Write-Host "   ISP Organisation. . . . . . . . . . : $($ispInfo.IspOrg -join "`n                                         ")" -ForegroundColor Yellow
+    Write-Host "   ISP ASN . . . . . . . . . . . . . . : $($ispInfo.IspAs -join "`n                                         ")" -ForegroundColor Yellow
+    Write-Host "   ISP City. . . . . . . . . . . . . . : $($ispInfo.IspCity -join "`n                                         ")" -ForegroundColor Yellow
+    Write-Host "   ISP Region. . . . . . . . . . . . . : $($ispInfo.IspRegion -join "`n                                         ")" -ForegroundColor Yellow
+    Write-Host "   ISP Country . . . . . . . . . . . . : $($ispInfo.IspCountry -join "`n                                         ")" -ForegroundColor Yellow
+    Write-Host "   ISP ZIP Code. . . . . . . . . . . . : $($ispInfo.IspZip -join "`n                                         ")" -ForegroundColor Yellow
+    Write-Host "   ISP Location. . . . . . . . . . . . : $($ispInfo.IspLoc -join "`n                                         ")" -ForegroundColor Yellow
+    Write-Host "   ISP Timezone. . . . . . . . . . . . : $($ispInfo.IspTimezone -join "`n                                         ")" -ForegroundColor Yellow
     Write-Host ""
 
 
@@ -642,6 +666,7 @@ Write-Host ""
 # Group by interface name and display consolidated information
 $groupedInfo = $localInfo | Group-Object InterfaceName
 
+<# START $group foreach loop #>
 foreach ($group in $groupedInfo) {
     Write-Host "Interface. . . . . . . . . . . . . . . : $($group.Name)" -ForegroundColor Cyan
     Write-Host ""
@@ -651,7 +676,9 @@ foreach ($group in $groupedInfo) {
     $ipv6Addresses = $group.Group | Where-Object { $_.AddressFamily -eq "IPv6" }# | Sort-Object Name -Unique
     
     # Display information for the first IPv4 entry (which has the DNS suffix and other common info)
-    if ($ipv4Addresses) {
+    <# START display for ipv4 output #>
+    if ($ipv4Addresses)
+    {
         $firstIPv4 = $ipv4Addresses | Select-Object -First 1
         # Display all IPv4 information
         # OUTSIDE OF LOOP
@@ -682,49 +709,54 @@ foreach ($group in $groupedInfo) {
             Write-Host "   Subnet Mask . . . . . . . . . . . . : $($info.SubnetMask)" -ForegroundColor Yellow
             Write-Host "   IPv4 Prefix Length. . . . . . . . . : $($info.PrefixLength)" -ForegroundColor Yellow
         }
-
-        If ($firstIPv4.MediaConnectionState -eq "Disconnected") {
-            Write-Host "   Link Speed. . . . . . . . . . . . . : $($firstIPv4.LinkSpeed)" -ForegroundColor Yellow
+        # If wi-fi nic.
+        If ($firstIPv4.PhysicalMediaType -like "*802.11*")
+        {
+            Write-Host "   WiFi SSID . . . . . . . . . . . . . : $($firstIPv4.wifiSSID)" -ForegroundColor Yellow
+            Write-Host "   WiFi Key. . . . . . . . . . . . . . : $($firstIPv4.wifiKey)" -ForegroundColor Yellow
         }
-        Elseif($firstIPv4.MediaConnectionState -eq "Connected") {
-            If ($firstIPv4.PhysicalMediaType -like "*802.11*")
-            {
-                Write-Host "   WiFi SSID . . . . . . . . . . . . . : $($firstIPv4.wifiSSID)" -ForegroundColor Yellow
-                Write-Host "   WiFi Key. . . . . . . . . . . . . . : $($firstIPv4.wifiKey)" -ForegroundColor Yellow
-            }
-            
-            Write-Host "   Default Gateway . . . . . . . . . . : $($firstIPv4.DefaultGateway)" -ForegroundColor Yellow
-            Write-Host "   DNS Servers . . . . . . . . . . . . : $($firstIPv4.DnsServers -split ', ' -join "`n                                         ")" -ForegroundColor Yellow
-            Write-Host "   Link Speed. . . . . . . . . . . . . : $($firstIPv4.LinkSpeed)" -ForegroundColor Yellow
+        Write-Host "   Default Gateway . . . . . . . . . . : $($firstIPv4.DefaultGateway)" -ForegroundColor Yellow
+        Write-Host "   DNS Servers . . . . . . . . . . . . : $($firstIPv4.DnsServers -split ', ' -join "`n                                         ")" -ForegroundColor Yellow
+        Write-Host "   Link Speed. . . . . . . . . . . . . : $($firstIPv4.LinkSpeed)" -ForegroundColor Yellow
+        # If connected show telemetry.
+        If ($firstIPv4.MediaConnectionState -eq "Connected")
+        {
             Write-Host "   Received Bytes. . . . . . . . . . . : $($firstIPv4.ReceivedBytes) MB" -ForegroundColor Yellow
             Write-Host "   Sent Bytes. . . . . . . . . . . . . : $($firstIPv4.SentBytes) MB" -ForegroundColor Yellow
-            Write-Host "   Physical Address. . . . . . . . . . : $($firstIPv4.MacAddress)" -ForegroundColor Yellow
-            Write-Host "   DHCPv4 Enabled. . . . . . . . . . . : $($firstIPv4.DhcpEnabledV4)" -ForegroundColor Yellow
-            # Display DHCP variables only if DHCP is enabled
-            if ($firstIPv4.DhcpEnabledV4 -eq "Yes") {
-                Write-Host "   DHCPv4 Server . . . . . . . . . . . : $($firstIPv4.DhcpServerV4)" -ForegroundColor Yellow
-                Write-Host "   Lease Obtained. . . . . . . . . . . : $($firstIPv4.dhcpLeaseObtainedTimeV4)" -ForegroundColor Yellow
-                Write-Host "   Lease Expires . . . . . . . . . . . : $($firstIPv4.dhcpLeaseTerminatesTimeV4)" -ForegroundColor Yellow
-                }
-            if ($firstIPv4.DhcpEnabledV6 -eq "Yes") {
-                Write-Host "   DHCPv6 Enabled. . . . . . . . . . . : $($firstIPv4.DhcpEnabledV6)" -ForegroundColor Yellow
-                Write-Host "   DHCPv6 IAID . . . . . . . . . . . . : $($firstIPv4.Dhcpv6Iaid)" -ForegroundColor Yellow
-                Write-Host "   DHCPv6 Client DUID. . . . . . . . . : $($firstIPv4.Dhcpv6Duid)" -ForegroundColor Yellow
-                if ($firstIPv4.dhcpLeaseObtainedTimeV6)
-                {
-                    Write-Host "   Leasev6 Obtained. . . . . . . . . . : $($firstIPv4.dhcpLeaseObtainedTimeV6)" -ForegroundColor Yellow
-                    Write-Host "   Leasev6 Expires . . . . . . . . . . : $($firstIPv4.dhcpLeaseTerminatesTimeV6)" -ForegroundColor Yellow
-                }
+        }
+        Write-Host "   Physical Address. . . . . . . . . . : $($firstIPv4.MacAddress)" -ForegroundColor Yellow
+        Write-Host "   DHCPv4 Enabled. . . . . . . . . . . : $($firstIPv4.DhcpEnabledV4)" -ForegroundColor Yellow
+        # Display DHCPv4 variables only if DHCP is enabled
+        if ($firstIPv4.DhcpEnabledV4 -eq "Yes")
+        {
+            Write-Host "   DHCPv4 Server . . . . . . . . . . . : $($firstIPv4.DhcpServerV4)" -ForegroundColor Yellow
+            Write-Host "   Lease Obtained. . . . . . . . . . . : $($firstIPv4.dhcpLeaseObtainedTimeV4)" -ForegroundColor Yellow
+            Write-Host "   Lease Expires . . . . . . . . . . . : $($firstIPv4.dhcpLeaseTerminatesTimeV4)" -ForegroundColor Yellow
+        }
+        Write-Host "   DHCPv6 Enabled. . . . . . . . . . . : $($firstIPv4.DhcpEnabledV6)" -ForegroundColor Yellow
+        # Display DHCPv6 variables only if DHCP is enabled
+        if ($firstIPv4.DhcpEnabledV6 -eq "Yes")
+        {
+            Write-Host "   DHCPv6 IAID . . . . . . . . . . . . : $($firstIPv4.Dhcpv6Iaid)" -ForegroundColor Yellow
+            Write-Host "   DHCPv6 Client DUID. . . . . . . . . : $($firstIPv4.Dhcpv6Duid)" -ForegroundColor Yellow
+            if ($firstIPv4.dhcpLeaseObtainedTimeV6)
+            {
+                Write-Host "   Leasev6 Obtained. . . . . . . . . . : $($firstIPv4.dhcpLeaseObtainedTimeV6)" -ForegroundColor Yellow
+                Write-Host "   Leasev6 Expires . . . . . . . . . . : $($firstIPv4.dhcpLeaseTerminatesTimeV6)" -ForegroundColor Yellow
             }
         }
+        
         Write-Host "   Autoconfiguration Enabled . . . . . : $($firstIPv4.AutoconfigurationEnabled)" -ForegroundColor Yellow
         Write-Host "   NetBIOS over Tcpip. . . . . . . . . : $($firstIPv4.NetbiosEnabled)" -ForegroundColor Yellow
-        
-        
+        # Line space.
+        Write-Host ""
     }
+    <# END display for ipv4 output #>
     
+    <# START display for ipv6 output #>
     # Display IPv6 addresses that do not have an IPv4 shared adapter (if any)
-    if ($ipv6Addresses -and !$ipv4Addresses) {
+    if ($ipv6Addresses -and !$ipv4Addresses)
+    {
         $firstIPv6 = $ipv6Addresses | Select-Object -First 1
         # OUTSIDE THE LOOP.
         Write-Host "   Description . . . . . . . . . . . . : $($firstIPv6.InterfaceDescription)" -ForegroundColor Yellow
@@ -752,47 +784,46 @@ foreach ($group in $groupedInfo) {
         }
         Write-Host "   Autoconfiguration Enabled . . . . . : $($firstIPv6.AutoconfigurationEnabled)" -ForegroundColor Yellow
         Write-Host "   NetBIOS over Tcpip. . . . . . . . . : $($firstIPv6.NetbiosEnabled)" -ForegroundColor Yellow
-    }
-
-        If ($firstIPv6.MediaConnectionState -eq "Disconnected")
+        # If wifi show info.      
+        If ($firstIPv6.PhysicalMediaType -like "*802.11*")
         {
-                Write-Host "   Link Speed. . . . . . . . . . . . . : $($firstIPv6.LinkSpeed)" -ForegroundColor Yellow
+            Write-Host "   WiFi SSID . . . . . . . . . . . . . : $($firstIPv6.wifiSSID)" -ForegroundColor Yellow
+            Write-Host "   WiFi Key. . . . . . . . . . . . . . : $($firstIPv6.wifiKey)" -ForegroundColor Yellow
         }
-        Elseif($firstIPv6.MediaConnectionState -eq "Connected")
+        Write-Host "   Default Gateway . . . . . . . . . . : $($firstIPv6.DefaultGateway)" -ForegroundColor Yellow
+        Write-Host "   DNS Servers . . . . . . . . . . . . : $($firstIPv6.DnsServers -split ', ' -join "`n                                         ")" -ForegroundColor Yellow
+        Write-Host "   Link Speed. . . . . . . . . . . . . : $($firstIPv6.LinkSpeed)" -ForegroundColor Yellow
+        # If NIC connected show telemetry.
+        If ($firstIPv6.MediaConnectionState -eq "Connected")
         {
-                
-                If ($firstIPv6.PhysicalMediaType -like "*802.11*")
-                {
-                    Write-Host "   WiFi SSID . . . . . . . . . . . . . : $($firstIPv6.wifiSSID)" -ForegroundColor Yellow
-                    Write-Host "   WiFi Key. . . . . . . . . . . . . . : $($firstIPv6.wifiKey)" -ForegroundColor Yellow
-                }
-                
-                Write-Host "   Default Gateway . . . . . . . . . . : $($firstIPv6.DefaultGateway)" -ForegroundColor Yellow
-                Write-Host "   DNS Servers . . . . . . . . . . . . : $($firstIPv6.DnsServers -split ', ' -join "`n                                         ")" -ForegroundColor Yellow
-                Write-Host "   Link Speed. . . . . . . . . . . . . : $($firstIPv6.LinkSpeed)" -ForegroundColor Yellow
-                Write-Host "   Received Bytes. . . . . . . . . . . : $($firstIPv6.ReceivedBytes)" -ForegroundColor Yellow
-                Write-Host "   Sent Bytes. . . . . . . . . . . . . : $($firstIPv6.SentBytes)" -ForegroundColor Yellow
-                Write-Host "   Physical Address. . . . . . . . . . : $($firstIPv6.MacAddress)" -ForegroundColor Yellow
-                Write-Host "   DHCPv4 Enabled. . . . . . . . . . . : $($firstIPv6.DhcpEnabledV4)" -ForegroundColor Yellow
-                # Display DHCP variables only if DHCP is enabled
-                if ($firstIPv6.DhcpEnabledV4 -eq "Yes") {
-                    Write-Host "   DHCPv4 Server . . . . . . . . . . . : $($firstIPv6.DhcpServerV4)" -ForegroundColor Yellow
-                    Write-Host "   Lease Obtained. . . . . . . . . . . : $($firstIPv6.dhcpLeaseObtainedTimeV4)" -ForegroundColor Yellow
-                    Write-Host "   Lease Expires . . . . . . . . . . . : $($firstIPv6.dhcpLeaseTerminatesTimev4)" -ForegroundColor Yellow
-                }
-                if ($firstIPv6.DhcpEnabledV6 -eq "Yes") {
-                    Write-Host "   DHCPv6 Enabled. . . . . . . . . . . : $($firstIPv6.DhcpEnabledV6)" -ForegroundColor Yellow
-                    Write-Host "   DHCPv6 IAID . . . . . . . . . . . . : $($firstIPv6.Dhcpv6Iaid)" -ForegroundColor Yellow
-                    Write-Host "   DHCPv6 Client DUID. . . . . . . . . : $($firstIPv6.Dhcpv6Duid)" -ForegroundColor Yellow
-                    if ($firstIPv6.dhcpLeaseObtainedTimeV6)
-                    {
-                        Write-Host "   Leasev6 Obtained. . . . . . . . . . : $($firstIPv6.dhcpLeaseObtainedTimeV6)" -ForegroundColor Yellow
-                        Write-Host "   Leasev6 Expires . . . . . . . . . . : $($firstIPv6.dhcpLeaseTerminatesTimeV6)" -ForegroundColor Yellow
-                    }
-                }
-            }   
-    Write-Host ""
+            Write-Host "   Received Bytes. . . . . . . . . . . : $($firstIPv6.ReceivedBytes)" -ForegroundColor Yellow
+            Write-Host "   Sent Bytes. . . . . . . . . . . . . : $($firstIPv6.SentBytes)" -ForegroundColor Yellow
+        }
+        Write-Host "   Physical Address. . . . . . . . . . : $($firstIPv6.MacAddress)" -ForegroundColor Yellow
+        Write-Host "   DHCPv4 Enabled. . . . . . . . . . . : $($firstIPv6.DhcpEnabledV4)" -ForegroundColor Yellow
+        # Display DHCPv4 variables only if DHCP is enabled
+        if ($firstIPv6.DhcpEnabledV4 -eq "Yes") {
+            Write-Host "   DHCPv4 Server . . . . . . . . . . . : $($firstIPv6.DhcpServerV4)" -ForegroundColor Yellow
+            Write-Host "   Lease Obtained. . . . . . . . . . . : $($firstIPv6.dhcpLeaseObtainedTimeV4)" -ForegroundColor Yellow
+            Write-Host "   Lease Expires . . . . . . . . . . . : $($firstIPv6.dhcpLeaseTerminatesTimev4)" -ForegroundColor Yellow
+        }
+        Write-Host "   DHCPv6 Enabled. . . . . . . . . . . : $($firstIPv6.DhcpEnabledV6)" -ForegroundColor Yellow
+        # Display DHCPv6 variables only if DHCP is enabled
+        if ($firstIPv6.DhcpEnabledV6 -eq "Yes") {
+            Write-Host "   DHCPv6 IAID . . . . . . . . . . . . : $($firstIPv6.Dhcpv6Iaid)" -ForegroundColor Yellow
+            Write-Host "   DHCPv6 Client DUID. . . . . . . . . : $($firstIPv6.Dhcpv6Duid)" -ForegroundColor Yellow
+            if ($firstIPv6.dhcpLeaseObtainedTimeV6)
+            {
+                Write-Host "   Leasev6 Obtained. . . . . . . . . . : $($firstIPv6.dhcpLeaseObtainedTimeV6)" -ForegroundColor Yellow
+                Write-Host "   Leasev6 Expires . . . . . . . . . . : $($firstIPv6.dhcpLeaseTerminatesTimeV6)" -ForegroundColor Yellow
+            }
+        }
+        # Line space.
+        Write-Host ""
+    } 
+    <# END display for ipv6 output #>
 }
-# Line space
+<# END $group foreach loop #>
+# Line space.
 Write-Host ""
 <# DISPLAY OUTPUT END #>

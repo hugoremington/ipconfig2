@@ -4,7 +4,7 @@ IPConfig2 is an enhanced Windows network configuration utility built in PowerShe
 
 It extends the native `ipconfig` command by combining local network adapter data with public IP, ISP, and DNS context into a single CLI output.
 
-The tool provides a consolidated, human-readable snapshot of a system’s current network state across Ethernet, Wi-Fi, Bluetooth PAN, and virtual interfaces.
+The tool provides a comprehensive, human-readable snapshot of a system’s current network state across Ethernet, Wi-Fi, Bluetooth PAN, and virtual interfaces.
 
 ---
 
@@ -120,13 +120,19 @@ version         = Get utility version and attribution metadata.
 
 ## Changelog
 
+### 0.5.0.2 - 01-Apr-2026
+* Improved DHCP release/renew functions to use modern CimInstance methods. Retained classic WMIObject methods as a fallback using try/catch blocks.
+* Improved output table even more. No more efficient and consistent with less foreach loops. 
+* More output now visible irrespective to media state, such as physical MAC address, dhcp, and more.
+* Improved metadata table which now dynamically displays multiple network profiles where available.
+* Slight formatting tweaks.
 ### 0.5.0.1 - 01-Apr-2026
 * Minor cosmetic bug fix with line spacing before/after release/renew commands.
 * Improved cosmetic line spacing after splash screen, more consistent with entire script.
 ### 0.5.0.0 - 01-Apr-2026
 * April Fool's Day major update, this release is no joke!
-* New feature: ipconfig2 /release switch to release DHCP leases on local system. Factored in new function called Invoke-IPConfigRelease. This is independent from Windows native ipconfig and a viable fallback feature.
-* New feature: ipconfig2 /renew switch to renew DHCP IP addresses on local system. Factored in new function called Invoke-IPConfigRenew. This is independent from Windows native ipconfig and a viable fallback feature.
+* New DHCP v4 and v6 release feature. Factored in new function called Invoke-IPConfigRelease. This is independent from Windows native ipconfig and a viable fallback feature.
+* New DHCP v4 and v6 renew feature. Factored in new function called Invoke-IPConfigRenew. This is independent from Windows native ipconfig and a viable fallback feature.
 * Now supporting NICs with multiple IP addresses! This was not working previously due to output syntax.
 * Now displays hidden DHCP 169.254 addresses.
 * Implemented new line break concatenation for multiple output values using (-join "`n                                         "). This now grants streamline output structure for elements such as NIC DNS server.
@@ -138,6 +144,7 @@ version         = Get utility version and attribution metadata.
 * Appended IPv4 and IPv6 distinguishment for subnet prefix length.
 * Sort-object when releasing/renewing IPs by InterfaceMetric number. This now resolves the bug where NICs would sequentially failover and not be scoped for DHCP release.
 * Fixed IP release by omitting logic IPEnabled, ensuring even disconnected NICs drop their DHCP lease.
+* Got IPv6 Link-local and Address subnet prefix length display to function.
 * Numerous bug fixes.
 ### 0.4.1.2 - 31-Mar-2026
 * Cosmetic change: renamed Ethernet Adapter section to Network Interface Card.
