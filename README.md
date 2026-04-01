@@ -108,17 +108,26 @@ cmd ipconfig2.exe
 
 ## Parameter
 ```powershell
-ipconfig2 [/release] [/renew] [/version]
+ipconfig2 [/flushdns] [/release] [/renew] [/resetwinsock] [/version]
 ```
 
 ```
+flushdns        = Clears local DNS cache entries on system.
 release         = Release DHCP IP addresses on local network interface cards on system with DHCP enabled.
 renew           = Renew DHCP IP Address on local network interface cards on system with DHCP enabled.
+resetwinsock    = Requires administrator privilege and system restart. Resets the Winsock catalog to a clean state, removing any custom LSPs to resolve network problems caused by corrupted Winsock settings. 
 version         = Get utility version and attribution metadata.
 ```
 
 ## Changelog
 
+### 0.5.0.4 - 02-Apr-2026
+* New /flushdns function. Will report on total stale DNS cache entries and clear in one go.
+* New /resetwinsock function. Resets the Winsock catalog to a clean state. Handy feature.
+* Replaced static variables with $null and $LASTEXITCODE for propert exception handling in /release and /renew functions. Useful for exception handling when using cmd such as netsh.
+* Bug fix reporting and fault-tolerance for /release and /renew functions. Now with CIM and WMI fallback properly detecting success/failure exceptions and fault tolerance between both methods. Preferring modern CIM first.
+* New timestamp feature, now reports on operations.
+* Various fixes and tweaks.
 ### 0.5.0.3 - 01-Apr-2026
 * Changed the conditions for displaying received/sent bytes to if greater than zero, rather than if media state is connected. Useful for observing stats retrospectively on disconnected interfaces.
 * This also fixes output for missing data point interfaces such as Bluetooth that do not have this telemetry yet.

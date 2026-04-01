@@ -1,8 +1,8 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "0.5.0.3"
-$date = "01-Apr-2026"
-
+$version = "0.5.0.4"
+$date = "02-Apr-2026. 01:03"
+$timestamp = (Get-Date -Format "dd/MMM/yyyy, HH:mm:ss.fff")
 # Splash screen
 Write-Host ""
 Write-Host "Windows IP Configuration 2.0" -ForegroundColor Yellow
@@ -33,35 +33,103 @@ function Convert-PrefixToSubnetMask {
     return ($octets -join ".")
 }
 
+# v0.5.0.4 FlushDNS Function.
+function Invoke-FlushDNS {
+    <#
+    .SYNOPSIS
+        Flushes the DNS resolver cache using Clear-DnsClientCache.
+    
+    .DESCRIPTION
+        This function flushes the DNS resolver cache using the built-in
+        Clear-DnsClientCache PowerShell cmdlet, which is available on Windows 8/Server 2012 and later.
+    #>
+    [CmdletBinding()]
+    param()
+    
+    try {
+        # Check if Clear-DnsClientCache is available
+        if (Get-Command Clear-DnsClientCache -ErrorAction SilentlyContinue) {
+            # Get total DNS cache entry count.
+            $DNSCacheCount = (Get-DnsClientCache).Count
+            # Clear DNS Cace.
+            Clear-DnsClientCache
+            Write-Host "$DNSCacheCount DNS cache entries flushed. Timestamp: $timestamp.`n" -ForegroundColor Yellow
+        }
+    }
+    catch {
+        Write-Error "Unable to flush DNS cache: $($_.Exception.Message) `n"
+        #throw
+    }
+    exit
+}
+
+function Invoke-ResetWinsock {
+    <#
+    .SYNOPSIS
+        Resets the Winsock catalog to a clean state, removing any custom LSPs to resolve network problems caused by corrupted Winsock settings. It doesn't affect Winsock Name Space Provider entries.
+    
+    .DESCRIPTION
+        This function reset Winsock using netsh. Requires elevation and restart.
+    #>  
+    try {
+        # Check if running as administrator
+        $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        
+        if (-not $isAdmin) {
+            Write-Host "This operation requires administrator privileges. Please run as administrator.`n" -ForegroundColor Yellow
+        }
+        else
+        {
+            # Execute netsh and suppress its output
+            $null = netsh winsock reset
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Sucessfully reset the Winsock Catalog. Timestamp: $timestamp." -ForegroundColor Yellow
+                Write-Host "You must restart the computer in order to complete the reset.`n" -ForegroundColor Yellow
+            } else {
+                Write-Host "Winsock reset failed with exit code: $LASTEXITCODE `n" -ForegroundColor Red
+            }
+        }
+        
+    }
+    catch {
+        Write-Host "Unable to reset Winsock." -ForegroundColor Red
+        #throw
+    }
+    exit
+}
+
 <# v0.4.1.2 NEW FUNCTIONS START     #>
 ## New Functions for IP Configuration Management
 
 function Invoke-IPConfigRelease {  
     try {
         # Try CimInstance method first (native PowerShell)
-        Write-Host "Releasing DHCP IP addresses..." -ForegroundColor Yellow
+        Write-Host "Releasing DHCP IP addresses...`n" -ForegroundColor Yellow
         $adapters = Get-NetIPInterface | Where-Object { $_.Dhcp -eq "Enabled" -and $_.InterfaceAlias -notlike "*Loopback*" } | Sort-Object -Property InterfaceMetric
             foreach ($adapter in $adapters)
             {
+                # Update timestamp in the loop for correct progress.
+                $timestamp = (Get-Date -Format "dd/MMM/yyyy, HH:mm:ss.fff")
                 try {                  
                     # Using modern CimInstance for rlease.
-                    $releaseCmd = Get-CimInstance Win32_NetworkAdapterConfiguration | Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) -and $_.DHCPEnabled -eq $True } | Invoke-CimMethod -MethodName "ReleaseDHCPLease"
-                    $releaseCmd | Out-Null
-                    Write-Host "IP successfully released on $($adapter.InterfaceAlias) $($adapter.AddressFamily)" -ForegroundColor Yellow
+                    $result = Get-CimInstance Win32_NetworkAdapterConfiguration | Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) -and $_.DHCPEnabled -eq $True } | Invoke-CimMethod -MethodName "ReleaseDHCPLease"
+                    if ($result.ReturnValue -eq 0) {
+                        Write-Host "Successfully released IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily). Timestamp: $timestamp." -ForegroundColor Yellow
+                    }
+                    else {
+                        #Write-Host "Failed to release IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) using CIM." -ForegroundColor Yellow
+                        # Using classing WmiObject for release.
+                        $result = Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) -and $_.DHCPEnabled -eq $True } | ForEach-Object { $_.ReleaseDHCPLease() }
+                        if ($result.ReturnValue -eq 0) {
+                            Write-Host "Successfully released IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) using WMI. Timestamp: $timestamp." -ForegroundColor Yellow
+                        }
+                        else {
+                            Write-Host "Failed to release IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily). Timestamp: $timestamp." -ForegroundColor Yellow
+                        }
+                    }
                 }
                 catch {
-                    Write-Host "Failed to release IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) : $($_.Exception.Message)" -ForegroundColor Orange
-                    Write-Host "Retrying using classic WMI operation." -ForegroundColor Yellow
-                    try {
-                        # Using classing WmiObject for release.
-                        $releaseCmd = Get-WmiObject Win32_NetworkAdapterConfiguration |
-                        Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) -and $_.DHCPEnabled -eq $True } |
-                        ForEach-Object { $_.ReleaseDHCPLease() }
-                        $releaseCmd | Out-Null
-                    }
-                    catch {
-                        Write-Host "Failed to release IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) : $($_.Exception.Message)" -ForegroundColor Red
-                    } 
+                    Write-Host "Failed to release IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) : $($_.Exception.Message)" -ForegroundColor Yellow
                 }
                 # Start sleep to prevent NIC failover.
                 #Start-Sleep 3
@@ -78,28 +146,32 @@ function Invoke-IPConfigRelease {
 function Invoke-IPConfigRenew {
     try {
         # Try CimInstance method first (native PowerShell)
-        Write-Host "Renewing DHCP IP addresses..." -ForegroundColor Yellow
+        Write-Host "Renewing DHCP IP addresses...`n" -ForegroundColor Yellow
         $adapters = Get-NetIPInterface | Where-Object { $_.Dhcp -eq "Enabled" -and $_.InterfaceAlias -notlike "*Loopback*" } | Sort-Object -Property InterfaceMetric
         foreach ($adapter in $adapters) {
+            # Update timestamp in the loop for correct progress.
+            $timestamp = (Get-Date -Format "dd/MMM/yyyy, HH:mm:ss.fff")
+
             try {
                 # Using modern CimInstance for renew.
-                $renewCmd = Get-CimInstance Win32_NetworkAdapterConfiguration | Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) <#-and $_.IPEnabled -eq $True #>-and $_.DHCPEnabled -eq $True } | Invoke-CimMethod -MethodName "RenewDHCPLease"
-                $renewCmd | Out-Null
-                Write-Host "IP successfully renewed on $($adapter.InterfaceAlias) $($adapter.AddressFamily)" -ForegroundColor Yellow
+                $result = Get-CimInstance Win32_NetworkAdapterConfiguration | Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) -and $_.DHCPEnabled -eq $True } | Invoke-CimMethod -MethodName "RenewDHCPLease"
+                if ($result.ReturnValue -eq 0) {
+                    Write-Host "Successfully renewed IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily). Timestamp: $timestamp." -ForegroundColor Yellow
+                }
+                else {
+                    #Write-Host "Failed to renew IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) using CIM." -ForegroundColor Yellow
+                    # Using classing WmiObject for renew.
+                    $result = Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) -and $_.DHCPEnabled -eq $True } | ForEach-Object { $_.RenewDHCPLease() }
+                    if ($result.ReturnValue -eq 0) {
+                        Write-Host "Successfully renewed IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) using WMI. Timestamp: $timestamp." -ForegroundColor Yellow
+                    }
+                    else {
+                        Write-Host "Failed to renew IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily). Timestamp: $timestamp." -ForegroundColor Yellow
+                    }
+                }
             }
             catch {
-                Write-Host "Failed to renew IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) : $($_.Exception.Message)" -ForegroundColor Orange
-                Write-Host "Retrying using classic WMI operation." -ForegroundColor Yellow
-                try {
-                    # Using classing WmiObject for renew.
-                    $renewCmd = Get-WmiObject Win32_NetworkAdapterConfiguration |
-                    Where-Object { $_.InterfaceIndex -eq $($adapter.IfIndex) -and $_.DHCPEnabled -eq $True } |
-                    ForEach-Object { $_.RenewDHCPLease() }
-                    $renewCmd | Out-Null
-                }
-                catch {
-                    Write-Host "Failed to renew IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) : $($_.Exception.Message)" -ForegroundColor Red
-                }
+                Write-Host "Failed to renew IP on $($adapter.InterfaceAlias) $($adapter.AddressFamily) : $($_.Exception.Message)" -ForegroundColor Yellow
             }
         }
     }
@@ -117,6 +189,14 @@ if ($args -contains "/release")
 if ($args -contains "/renew")
 {
     Invoke-IPConfigRenew
+}
+if ($args -contains "/flushdns")
+{
+    Invoke-FlushDNS
+}
+if ($args -contains "/resetwinsock")
+{
+    Invoke-ResetWinsock
 }
 
 <# v0.4.1.2 NEW FUNCTIONS END       #>
