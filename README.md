@@ -21,11 +21,10 @@ It is still experimental, some features may or may not work depending on your en
 ## Features
 
 ### Public Network Information
-- Public IPv4 Address (via external REST API)
+- Public IP Address
 - ISP Name and Organisation
 - ISP Location (Geolocation)
 - Public DNS Server
-- DNS Provider Organisation
 - Timezone
 
 ### System Metadata
@@ -108,10 +107,11 @@ cmd ipconfig2.exe
 
 ## Parameter
 ```powershell
-ipconfig2 [/flushdns] [/release] [/renew] [/resetwinsock] [/version]
+ipconfig2 [/all] [/flushdns] [/release] [/renew] [/resetwinsock] [/version]
 ```
 
 ```
+all             = Displays extended information including DHCP, physical mac, netbios and more.
 flushdns        = Clears local DNS cache entries on system.
 release         = Release DHCP IP addresses on local network interface cards on system with DHCP enabled.
 renew           = Renew DHCP IP Address on local network interface cards on system with DHCP enabled.
@@ -121,6 +121,13 @@ version         = Get utility version and attribution metadata.
 
 ## Changelog
 
+### 0.5.0.5 - 03-Apr-2026
+* Code optimisation; Complete code is now in modular functions, except for Args and Calls.
+* Fixed Netbios over tcpip data point. Now reporting correctly.
+* Fixed primary dns suffix and dns suffix search list data points. Now reporting correctly, and applied methods to removed empty array values.
+* Fixed wifi ssid/key reporting accuracy. Was previously broken due to null var $netProfileName, which I have now parsed into Get-LocalNicIpData using $netProfileName = (Get-AllSystemInfo).Metadata.NetProfileName.
+* New /all switch using $showAll var bool flag, to display extended information including DHCP, DNS, Public ISP, disconected interfaces, and more. 
+* Default output is now succinct.
 ### 0.5.0.4 - 02-Apr-2026
 * New /flushdns function. Will report on total stale DNS cache entries and clear in one go.
 * New /resetwinsock function. Resets the Winsock catalog to a clean state. Handy feature.
