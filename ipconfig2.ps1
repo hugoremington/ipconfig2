@@ -1,7 +1,7 @@
 # Script metadata
 $author = "Hugo Remington"
 $version = "0.5.0.5"
-$date = "03-Apr-2026. 04:18"
+$date = "03-Apr-2026. 04:39"
 $timestamp = (Get-Date -Format "dd/MMM/yyyy, HH:mm:ss.fff")
 # Splash screen
 Write-Host ""
@@ -246,7 +246,7 @@ function Get-AllSystemInfo {
             # Get dns suffix search list.
             $searchList = $getWin32_NetworkAdapterConfiguration.DNSDomainSuffixSearchOrder | Where-Object { $_ }
             if ($searchList -is [array]) {
-                $dnsSuffixSearchList = $searchList -join ", "
+                $dnsSuffixSearchList = $searchList
             }
             elseif ($searchList) {
                 $dnsSuffixSearchList = $searchList
