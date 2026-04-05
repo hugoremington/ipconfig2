@@ -19,16 +19,16 @@ When troubleshooting network connectivity or validating security policies, admin
 
 ---
 
-## Features
+# 🛠 Features
 
-### Public Network Information
+## 🌐 Public Network Information
 - Public IP Address
 - Public DNS Server
 - ISP Name and ASN
 - ISP Location (Geolocation)
 - Timezone
 
-### System Metadata
+## 💻 System Metadata
 - Host Name
 - Primary DNS Suffix
 - Network Profile Name
@@ -39,21 +39,21 @@ When troubleshooting network connectivity or validating security policies, admin
 - IPv4 Connectivity
 - IPv6 Connectivity
 
-### Network Operations
+## ⚙️ Network Operations
 - DHCP IP Release
 - DHCP IP Renew
 - Flush DNS cache
 - Reset Winsock catalog
 - Timestamp reporting
 
-### Network Interface Reporting
+## 🔌 Network Interface Reporting
 - Interface Name
 - Interface Description
 - Media State (Connected / Disconnected)
 - Media Type (Ethernet, Wi-Fi, Bluetooth, Virtual)
 - Physical MAC Address
 
-### IP Addressing
+## 📍 IP Addressing
 - IPv4 Address
 - IPv6 Address
 - Subnet Mask
@@ -61,12 +61,12 @@ When troubleshooting network connectivity or validating security policies, admin
 - Default Gateway
 - DNS Server
 
-### Wi-Fi Features
+## 📶 Wi-Fi Features
 - Wi-Fi SSID
 - Wi-Fi Key
 - Wi-Fi Link Speed
 
-### DHCP Information
+## 📄 DHCP Information
 - DHCPv4 Status
 - DHCPv4 Server
 - Lease Start/End Timestamps
@@ -74,12 +74,12 @@ When troubleshooting network connectivity or validating security policies, admin
 - DHCPv6 IAID
 - DHCPv6 Client DUID
 
-### Network Telemetry
+## 📊 Network Telemetry
 - Link Speed (Mbps / Gbps)
 - Received Bytes (MB)
 - Sent Bytes (MB)
 
-### Additional Capabilities
+## 🚀 Additional Capabilities
 - Bluetooth PAN adapter support
 - Virtual adapter support (e.g. Hyper-V switches)
 - Dynamic interface grouping (IPv4 + IPv6 per adapter)
@@ -89,19 +89,19 @@ When troubleshooting network connectivity or validating security policies, admin
 
 ---
 
-## To-Do
+# 📝 To-Do
  - Installer package
  - System environment variables
 
 ---
 
-## Requirements
+# 📋 Requirements
 - Windows OS
 - PowerShell v5.0+ (older versions may work thanks to WMI backward compatibility)
 
 ---
 
-## Usage
+# 📖 Usage
 
 `powershell .\ipconfig2.ps1`
 
@@ -115,7 +115,7 @@ Quick instructions:
 
 ---
 
-## Parameter
+## ⌨️ Parameter
 ```powershell
 ipconfig2 [/all] [/flushdns] [/outfile:"C:\Temp\ipconfig2.txt"] [/release] [/renew] [/resetwinsock] [/version]
 ```
@@ -132,7 +132,7 @@ version         = Get utility version and attribution metadata.
 
 ---
 
-## Changelog
+# 🛠️ Changelog
 
 ### 1.0.0.0 - 05-Apr-2026
 * This release now completes version 1.0.0.0, as all definitions of done are now fulfilled. `ipconfig2` now supports most of the original data points as ipconfig.
@@ -327,7 +327,7 @@ version         = Get utility version and attribution metadata.
 
 ---
 
-# Attribution & License
+# 🪪 Attribution & License
 
 Author: Hugo Remington
 
