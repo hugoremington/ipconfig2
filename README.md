@@ -6,6 +6,8 @@ It extends the native `ipconfig` command by combining local network adapter data
 
 The tool provides a comprehensive, human-readable snapshot of a system’s current network state across Ethernet, Wi-Fi, Bluetooth PAN, and virtual interfaces.
 
+Network operation functionality is available through command-line parameters. See the Parameter section.
+
 ---
 
 ## Overview
@@ -14,7 +16,6 @@ IPConfig2 was originally created as a simple one-liner utility to retrieve a mac
 
 The application is lightweight, runs entirely in the command line (CLI), and can be executed as either a PowerShell script or compiled executable.
 
-It is still experimental, some features may or may not work depending on your environment. Use it with care.
 
 ---
 
@@ -37,14 +38,18 @@ It is still experimental, some features may or may not work depending on your en
 - DNS Suffix Search List
 
 ### Network Operations
-- DHCP Release switch.
-- DHCP Renew switch.
+- DHCP IP Release
+- DHCP IP Renew
+- Flush DNS cache
+- Reset Winsock catalog
+- Timestamp reporting
 
 ### Network Interface Reporting
 - Interface Name
 - Interface Description
 - Media State (Connected / Disconnected)
 - Media Type (Ethernet, Wi-Fi, Bluetooth, Virtual)
+- Physical MAC Address
 
 ### IP Addressing
 - IPv4 Address
@@ -57,12 +62,13 @@ It is still experimental, some features may or may not work depending on your en
 ### Wi-Fi Features
 - Wi-Fi SSID
 - Wi-Fi Key
+- Wi-Fi Link Speed
 
 ### DHCP Information
-- DHCPv4 Enabled Status
+- DHCPv4 Status
 - DHCPv4 Server
-- Lease Information
-- DHCPv6 Enabled Status
+- Lease Start/End Timestamps
+- DHCPv6 Status
 - DHCPv6 IAID
 - DHCPv6 Client DUID
 
@@ -77,24 +83,22 @@ It is still experimental, some features may or may not work depending on your en
 - Dynamic interface grouping (IPv4 + IPv6 per adapter)
 - Graceful handling of no-internet scenarios
 - Multi-threaded REST API calls for performance optimisation
+- Save to TXT file capability using the [/outfile] switch.
 
 ---
 
 ## To-Do
- - Output to TXT/CSV feature.
+ - Installer package
+ - System environment variables
 
 ---
 
 ## Performance Notes
 
-- ~5–10 seconds  
-
 Runtime depends on:
 - External API response time (public IP / DNS)
 - Number of network interfaces
 - System performance
-
-IPConfig2 prioritises comprehensive information over raw execution speed, providing significantly more context than native `ipconfig`.
 
 ---
 
@@ -104,23 +108,66 @@ powershell .\ipconfig2.ps1
 
 cmd ipconfig2.exe
 
+Quick instructions: 
+1. Extract ipconfig2.exe from the downloaded release file
+2. Launch Terminal, or PowerShell, or Command Prompt
+3. Run ipconfig2.exe
+4. (Optional) Enter switches for additional output. ```Example: ipconfig2 /all```
+
+---
 
 ## Parameter
 ```powershell
-ipconfig2 [/all] [/flushdns] [/release] [/renew] [/resetwinsock] [/version]
+ipconfig2 [/all] [/flushdns] [/outfile:"C:\Temp\ipconfig2.txt"] [/release] [/renew] [/resetwinsock] [/version]
 ```
 
 ```
 all             = Displays extended information including DHCP, physical mac, netbios and more.
 flushdns        = Clears local DNS cache entries on system.
+outfile         = Saves output to TXT file. You can specify a custom path using example [/outfile:"C:\temp\ipconfig2.txt"]. Default [/outfile] switch path is "$env:windir\Logs\ipconfig2" if no custom path is specified.
 release         = Release DHCP IP addresses on local network interface cards on system with DHCP enabled.
 renew           = Renew DHCP IP Address on local network interface cards on system with DHCP enabled.
 resetwinsock    = Requires administrator privilege and system restart. Resets the Winsock catalog to a clean state, removing any custom LSPs to resolve network problems caused by corrupted Winsock settings. 
 version         = Get utility version and attribution metadata.
 ```
 
+---
+
 ## Changelog
 
+### 1.0.0.0 - 05-Apr-2026
+* This release now completes version 1.0.0.0, as all definitions of done are now fulfilled. IPConfig2 now supports most of the data points as native ipconfig2, plus more.
+* New feature: Save to file! It can now export the report as a TXT file using the /outfile switch.
+* Overall performance optimisation thanks major code refactorisation including multithreads, memory param/return functions. Uses ~50% less memory than v0.5.0.6. Runs ~50% quicker.
+* Major code refactor and optimisation: Deprecated all Write-Host commands, superseding it with memory using $output array. Output is now controlled and parsed using in memory by using params and return vars. This improves efficiency and is the approach for standardisation.
+* Major code refactor and optimisation: Created new function called Invoke-SaveFile. Using this for save file operation. Now supports folder creation if directory does not exist. Also falls back to a default path of "$env:windir\Logs\ipconfig2".
+* Major code refactor and optimisation: Enabled multithreading for big function Get-LocalNicIpData using $nicjob Start-Job. This should improve performance.
+* Resolved $NetworkAdapterConfiguration parse error in $nicjob.
+* ipconfig2 now detects if system support CIM, else falls back on WMI. This improves OS compatibility and robustness. Refactored in Get-AllSystemInfo function.
+* Optimised memory efficieny even more by reducing class reference to Win32_NetworkAdapterConfiguration (retained a seperate instance in Get-LocalNICIpData function due to performance multithreading). Achieved this by calling the class only a single instance in Get-AllSystemInfo, and parsing in memory using return/param functions.
+* Significantly improved /release and /renew functions. No more nested loops. Reporting accurately. Using memory where possible. With CIM and WMI fallback for legacy support.
+* Due to a catch-22 situation, requiring metadata -> release/renew -> Get-LocalNic Ip data function and multithreading flow, I needed to seperate CIM/WMI system calls outside of the Get-Metadata function.
+* Created a new function called Get-SystemType which detects if OS supports CIM/WMI. Then makes single call to class Win32_NetworkAdapterConfiguration. Memory efficiency.
+* Appended necessary $args and validation logic to ensure /outfile successfully saves to custom path, and default environment log directory. Error and exception handling now in place as guardrails.
+* Fixed a rare glitch where the Interface description would output redundantly during ipconfig2 /release. Now checking IPv4 and IPv6 duplicates correctly, even if no IP address exists or is obtaining DHCP.
+* Omitted ipconfig2 /release, sleep-timer as a workaround solution, now that the root-cause is remediated.
+* Supports both /resetwinsock and /winsockreset switches for the same function, as a typo fallback.
+* Removed colourisation, due to $output memory replacing write-host. More streamline.
+* Fixed a bug where /flushdns, /release, /renew, /resetwinsock functions were executing twice due to redundant calls in main args and Display-Output function. This has improved performance and resolved other cosmetic issues.
+* Fixed a bug with nested loops within /release and /renew commands. Improved speed.
+* Resolved DHCP /release /renew function output accuracy, now reporting correct interface(s), service and timestamps.
+* DHCP Renew now only scoped to IPEnabled interfaces for speed.
+* Now parsing $metadata out from Display-Output function as return var. Using this in other functions as params such as Invoke-SaveFile. Better memory optimisation, less system calls.
+* Improved WiFi output; Now filtering for WiFi profile using $WifiProfileName and $netProfileType vars in Get-Metadata function.
+* Fixed bug where IP output table contained stale entries post-release/renew commands. Resolved by re-ordering args switches in Dislay-Output function.
+* Additional checks in output for WiFi connected vs disconnected to display last known ssid/key.
+* Various other bugfixes and improvements.
+* Bug: Wi-Fi output can be inaccurate if you release/renew WiFi NIC DHCP, but will report correctly after reconnection to SSID.
+### 0.5.0.6 - 03-Apr-2026
+* New feature: Net node type, which detects NetBios node types including Broadcast, Peer-Peer, Mixed, Hybrid. Now available in metadata section.
+* Added new timestamp feature and the end of report. Useful for artefact production.
+* Code optimisation, reduced registry query variables by consolidating and removing unused.
+* Other tweaks and fixes.
 ### 0.5.0.5 - 03-Apr-2026
 * Code optimisation; Complete code is now in modular functions, except for Args and Calls.
 * Fixed Netbios over tcpip data point. Now reporting correctly.
@@ -290,3 +337,5 @@ License: MIT
 Compiled as an EXE using [MScholtes/PS2EXE](https://github.com/MScholtes/PS2EXE)
 
 Public IP and Public DNS retrieval using REST API via free provider [ip-api.com](https://ip-api.com). Licensing is subject to their terms and conditions.
+
+---
