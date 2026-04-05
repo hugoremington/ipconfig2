@@ -106,15 +106,15 @@ Runtime depends on:
 
 ## Usage
 
-powershell .\ipconfig2.ps1
+`powershell .\ipconfig2.ps1`
 
-cmd ipconfig2.exe
+`cmd ipconfig2.exe`
 
 Quick instructions: 
 1. Extract ipconfig2.exe from the downloaded release file
 2. Launch Terminal, or PowerShell, or Command Prompt
-3. Run ipconfig2.exe
-4. (Optional) Enter switches for additional output. ```Example: ipconfig2 /all```
+3. Run `ipconfig2.exe`
+4. (Optional) Enter switches for additional output. `Example: ipconfig2 /all`
 
 ---
 
