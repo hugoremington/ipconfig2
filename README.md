@@ -337,6 +337,6 @@ License: MIT
 
 Compiled as an EXE using [MScholtes/PS2EXE](https://github.com/MScholtes/PS2EXE)
 
-Public IP and Public DNS retrieval using REST API via free provider [ip-api.com](https://ip-api.com). Licensing is subject to their terms and conditions.
+Public IP retrieval using REST API via free provider [ip-api.com](https://ip-api.com). Public DNS retrieval via 'whoami.akamai.net'. Licensing is subject to their terms and conditions.
 
 ---
