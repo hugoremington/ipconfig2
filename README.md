@@ -2,7 +2,7 @@
 
 **An enhanced Windows network configuration utility built in PowerShell.**
 
-`ipconfig2` extends the native Windows `ipconfig` command by retrieving external context such as Public IP, ISP, and Geolocation, into a single pane of glass CLI output.
+`ipconfig2` is a Windows command-line (CLI) network configuration utility for observing endpoint Public IP, ISP, and Geolocation, from a single pane of glass.
 
 ## 🚀 The Problem
 When troubleshooting network connectivity or validating security policies, administrators often have to jump between the command line (for endpoint local IP info) and a web browser (to find endpoint public IP and location). This breaks workflow and adds friction. `ipconfig2` addresses this challenge.
