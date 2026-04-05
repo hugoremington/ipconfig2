@@ -1,6 +1,6 @@
 # 🌐 ipconfig2
 
-**An enhanced Windows network configuration utility for PowerShell.**
+**An enhanced Windows network configuration utility built in PowerShell.**
 
 `ipconfig2` extends the native Windows `ipconfig` command by retrieving external context such as Public IP, ISP, and Geolocation, into a single pane of glass CLI output.
 
@@ -8,7 +8,7 @@
 When troubleshooting network connectivity or validating security policies, administrators often have to jump between the command line (for endpoint local IP info) and a web browser (to find endpoint public IP and location). This breaks workflow and adds friction.
 
 ## ✨ Key Features
-* **External Context:** Automatically retrieves Public IP, ISP, and Geolocation data.
+* **External Context:** Automatically retrieves endpoint Public IP, ISP, and Geolocation data.
 * **Unified View:** Combines local adapter details (Ethernet, Wi-Fi, Bluetooth PAN, and Virtual interfaces) with global Internet context.
 * **No Browser Required:** Eliminate the need for web-based IP lookups during troubleshooting.
 * **Network Management:** Includes built-in utilities like `/flushdns` directly via CLI switches.
@@ -84,8 +84,12 @@ When troubleshooting network connectivity or validating security policies, admin
 - Virtual adapter support (e.g. Hyper-V switches)
 - Dynamic interface grouping (IPv4 + IPv6 per adapter)
 - Graceful handling of no-internet scenarios
-- Multi-threaded REST API calls for performance optimisation
-- Save to TXT file capability using the [/outfile] switch.
+- Network profile report
+- NetBIOS report
+- Timestamp report
+- Multi-threaded for performance
+- Object oriented for modular source code control
+- Save to TXT file capability using the [/outfile] switch
 
 ---
 
