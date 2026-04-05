@@ -61,7 +61,7 @@ The application is lightweight, runs entirely in the command line (CLI), and can
 - Subnet Mask
 - Prefix Length
 - Default Gateway
-- DNS Servers
+- DNS Server
 
 ### Wi-Fi Features
 - Wi-Fi SSID
