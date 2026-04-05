@@ -1,10 +1,12 @@
-# IPConfig2
+# ipconfig2
 
-IPConfig2 is an enhanced Windows network configuration utility built in PowerShell.
+ipconfig2 is an enhanced Windows network configuration utility built in PowerShell.
 
 It extends the native `ipconfig` command by combining local network adapter data with public IP, ISP, and DNS context into a single CLI output.
 
-The tool provides a comprehensive, human-readable snapshot of a system’s current network state across Ethernet, Wi-Fi, Bluetooth PAN, and virtual interfaces.
+No need to use a browser to find your public IP anymore!
+
+The tool provides a comprehensive, readable snapshot of a system’s current network state across Ethernet, Wi-Fi, Bluetooth PAN, and virtual interfaces.
 
 Network operation functionality is available through command-line parameters. See the Parameter section.
 
@@ -12,7 +14,7 @@ Network operation functionality is available through command-line parameters. Se
 
 ## Overview
 
-IPConfig2 was originally created as a simple one-liner utility to retrieve a machine’s public IP address. It has since evolved into a more feature-rich diagnostic tool that provides deeper visibility into both local and external network configuration.
+ipconfig2 was originally created as a simple one-liner utility to retrieve a machine’s public IP address. It has since evolved into a more feature-rich diagnostic tool that provides deeper visibility into both local and external network configuration.
 
 The application is lightweight, runs entirely in the command line (CLI), and can be executed as either a PowerShell script or compiled executable.
 
@@ -138,7 +140,7 @@ version         = Get utility version and attribution metadata.
 ## Changelog
 
 ### 1.0.0.0 - 05-Apr-2026
-* This release now completes version 1.0.0.0, as all definitions of done are now fulfilled. IPConfig2 now supports most of the data points as native ipconfig2, plus more.
+* This release now completes version 1.0.0.0, as all definitions of done are now fulfilled. ipconfig2 now supports most of the original data points as ipconfig, plus more.
 * New feature: Save to file! It can now export the report as a TXT file using the /outfile switch. Supports the default OS log directory if no path is specified. (\Windows\Logs\ipconfig2). Capable with custom paths. Capable with folder creation (access required.)
 * Overall performance optimisation thanks major code refactorisation including multithreads, memory param/return functions. Uses ~50% less memory than v0.5.0.6. Runs ~50% quicker.
 * Major code refactor and optimisation: Deprecated all Write-Host commands, superseding it with memory using $output array. Output is now controlled and parsed using in memory by using params and return vars. This improves efficiency and is the approach for standardisation.
