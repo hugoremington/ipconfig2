@@ -11,7 +11,7 @@ When troubleshooting network connectivity or validating security policies, admin
 * **External Context:** Automatically retrieves endpoint Public IP, ISP, and Geolocation data.
 * **Unified View:** Combines local adapter details (Ethernet, Wi-Fi, Bluetooth PAN, and Virtual interfaces) with global Internet context.
 * **No Browser Required:** Eliminate the need for web-based IP lookups during troubleshooting.
-* **Network Management:** Includes built-in utilities like `/flushdns` directly via CLI switches.
+* **Network Management:** Includes built-in utilities like `/resetwinsock` directly via CLI switches.
 * **Lightweight & Portable:** Run it as a native PowerShell script or download the compiled [Windows executable](https://github.com/hugoremington/ipconfig2/releases).
 
 ## 🛡️ Ideal Use Case: Security Validation
