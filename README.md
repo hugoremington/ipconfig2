@@ -23,9 +23,9 @@ The application is lightweight, runs entirely in the command line (CLI), and can
 
 ### Public Network Information
 - Public IP Address
+- Public DNS Server
 - ISP Name and Organisation
 - ISP Location (Geolocation)
-- Public DNS Server
 - Timezone
 
 ### System Metadata
@@ -36,6 +36,8 @@ The application is lightweight, runs entirely in the command line (CLI), and can
 - IP Routing Status
 - WINS Proxy Status
 - DNS Suffix Search List
+- IPv4 Connectivity
+- IPv6 Connectivity
 
 ### Network Operations
 - DHCP IP Release
@@ -137,7 +139,7 @@ version         = Get utility version and attribution metadata.
 
 ### 1.0.0.0 - 05-Apr-2026
 * This release now completes version 1.0.0.0, as all definitions of done are now fulfilled. IPConfig2 now supports most of the data points as native ipconfig2, plus more.
-* New feature: Save to file! It can now export the report as a TXT file using the /outfile switch.
+* New feature: Save to file! It can now export the report as a TXT file using the /outfile switch. Supports the default OS log directory if no path is specified. (\Windows\Logs\ipconfig2). Capable with custom paths. Capable with folder creation (access required.)
 * Overall performance optimisation thanks major code refactorisation including multithreads, memory param/return functions. Uses ~50% less memory than v0.5.0.6. Runs ~50% quicker.
 * Major code refactor and optimisation: Deprecated all Write-Host commands, superseding it with memory using $output array. Output is now controlled and parsed using in memory by using params and return vars. This improves efficiency and is the approach for standardisation.
 * Major code refactor and optimisation: Created new function called Invoke-SaveFile. Using this for save file operation. Now supports folder creation if directory does not exist. Also falls back to a default path of "$env:windir\Logs\ipconfig2".
