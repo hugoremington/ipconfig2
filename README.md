@@ -4,7 +4,7 @@
 
 It extends the native `ipconfig` command by combining local network adapter data with public IP, ISP, and DNS context into a single CLI output.
 
-No need to use a browser session to find your public IP. Great for validation testing of [Microsoft Entra ID Conditional Access, geoblocking policy](https://learn.microsoft.com/en-us/entra/identity/conditional-access/policy-block-by-location).
+No need to use a browser session to find your public IP and geolocation. Great for validation testing of [Microsoft Entra ID Conditional Access, geoblocking policy](https://learn.microsoft.com/en-us/entra/identity/conditional-access/policy-block-by-location).
 
 The tool provides a comprehensive, readable snapshot of a system’s current network state across Ethernet, Wi-Fi, Bluetooth PAN, and virtual interfaces.
 
