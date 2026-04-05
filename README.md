@@ -1,23 +1,21 @@
-# ipconfig2
+# 🌐 ipconfig2
 
-`ipconfig2` is an enhanced Windows network configuration utility built in PowerShell.
+**An enhanced Windows network configuration utility for PowerShell.**
 
-It extends the native `ipconfig` command by combining local network adapter data with public IP, ISP, and DNS context into a single CLI output.
+`ipconfig2` extends the native Windows `ipconfig` command by retrieving external context such as Public IP, ISP, and Geolocation, into a single pane of glass CLI output.
 
-No need to use a browser session to find your public IP and geolocation. Great for validation testing of [Microsoft Entra ID Conditional Access, geoblocking policy](https://learn.microsoft.com/en-us/entra/identity/conditional-access/policy-block-by-location).
+## 🚀 The Problem
+When troubleshooting network connectivity or validating security policies, administrators often have to jump between the command line (for endpoint local IP info) and a web browser (to find endpoint public IP and location). This breaks workflow and adds friction.
 
-The tool provides a comprehensive, readable snapshot of a system’s current network state across Ethernet, Wi-Fi, Bluetooth PAN, and virtual interfaces.
+## ✨ Key Features
+* **External Context:** Automatically retrieves Public IP, ISP, and Geolocation data.
+* **Unified View:** Combines local adapter details (Ethernet, Wi-Fi, Bluetooth PAN, and Virtual interfaces) with global Internet context.
+* **No Browser Required:** Eliminate the need for web-based IP lookups during troubleshooting.
+* **Network Management:** Includes built-in utilities like `/flushdns` directly via CLI switches.
+* **Lightweight & Portable:** Run it as a native PowerShell script or download the compiled [Windows executable](https://github.com/hugoremington/ipconfig2/releases).
 
-Network operation functionality such as `/flushdns` is available through CLI switches for convenience. See the Parameter section.
-
----
-
-## Overview
-
-`ipconfig2` was originally created as a simple one-liner utility to retrieve a machine’s public IP address and geolocation, without having to use a web browser. It has since evolved into a more feature-rich diagnostic tool that provides deeper visibility into both local and external network configuration.
-
-The application is lightweight, runs entirely in the command line (CLI), and can be executed as either a PowerShell script or compiled [Windows executable](https://github.com/hugoremington/ipconfig2/releases).
-
+## 🛡️ Ideal Use Case: Security Validation
+`ipconfig2` is specifically designed for testing [**Microsoft Entra ID (Azure AD) Conditional Access**](https://learn.microsoft.com/en-us/entra/identity/conditional-access/policy-block-by-location) and **Geoblocking** policies. Quickly verify if an endpoint's perceived location and IP range align with your organisational security posture.
 
 ---
 
