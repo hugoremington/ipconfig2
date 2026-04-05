@@ -14,7 +14,7 @@ Network operation functionality such as `/flushdns` is available through CLI swi
 
 ## Overview
 
-`ipconfig2` was originally created as a simple one-liner utility to retrieve a machine’s public IP address, without having to use a web browser. It has since evolved into a more feature-rich diagnostic tool that provides deeper visibility into both local and external network configuration.
+`ipconfig2` was originally created as a simple one-liner utility to retrieve a machine’s public IP address and geolocation, without having to use a web browser. It has since evolved into a more feature-rich diagnostic tool that provides deeper visibility into both local and external network configuration.
 
 The application is lightweight, runs entirely in the command line (CLI), and can be executed as either a PowerShell script or compiled [Windows executable](https://github.com/hugoremington/ipconfig2/releases).
 
