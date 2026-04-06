@@ -1,7 +1,7 @@
 # Script metadata
 $author = "Hugo Remington"
-$version = "1.0.0.0"
-$date = "05-Apr-2026. 18:35"
+$version = "1.0.1.0"
+$date = "06-Apr-2026. 12:47"
 $timestamp = (Get-Date -Format "dd-MMM-yyyy, HH.mm.ss.fff")
 # Check if running as administrator
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -127,7 +127,7 @@ function Invoke-IPConfigRelease {
         {
             $IpRenewOutput += "System does not support either CIM or WMI. IP renew will not function."
         }
-    
+
         foreach ($adapter in $adapters) {
             # Update timestamp in the loop for correct progress.
             $timestamp = (Get-Date -Format "dd/MMM/yyyy, HH:mm:ss.fff")
@@ -175,8 +175,6 @@ function Invoke-IPConfigRenew {
     [CmdletBinding()]
     param (
         $IpRenewOutput
-        #$NetworkAdapterConfiguration,
-        #$QueryType
     )
     try {
         # Try CimInstance method first (native PowerShell)
@@ -240,8 +238,8 @@ function Invoke-IPConfigRenew {
 
 function Get-AllSystemInfo {
     param (
-            $NetworkAdapterConfiguration
         )
+        
     function Get-Metadata {
         param (
         )
@@ -389,19 +387,20 @@ function Get-AllSystemInfo {
         Get-Isp
     }
 
+    # Run metadata function synchronously with Start-Job threads. Need this prior Get-LocalNicIpData variables.
+    $metadata = Get-Metadata
+
     # Get NIC JOB.
     $nicJob = Start-Job -ScriptBlock {
         param (
-            #$NetworkAdapterConfiguration
-            #$WifiProfileName # No longer required for WiFi SSID.
+            $NetworkAdapterConfiguration
         )
         <# ===START GET LOCAL NIC IP DATA FUNCTION=== #>
         function Get-LocalNicIpData {
             param (
-                #$NetworkAdapterConfiguration
-                #$WifiProfileName # No longer required for WiFi SSID.
+                $NetworkAdapterConfiguration
             )
-            $NetConnectionQuery = Get-NetConnectionProfile
+            $NetConnectionQuery = Get-NetConnectionProfile # For WiFi.
             
             # Net profile metadata
             if ($NetConnectionQuery) {
@@ -433,27 +432,6 @@ function Get-AllSystemInfo {
                 }
                 return ($octets -join ".")
             }
-            # v1.0.0.0 MAIN Detect CIM / WMI. Required again within this thread.
-            function Get-SystemType
-            {
-                $CIMWin32_NetworkAdapterConfiguration = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration -ErrorAction SilentlyContinue
-                if ($CIMWin32_NetworkAdapterConfiguration.Count -gt 0)
-                {
-                    $NetworkAdapterConfiguration = $CIMWin32_NetworkAdapterConfiguration
-                    $queryType = "CIM"
-                }
-                else
-                {
-                    # If CIM is not available on the system, then fallback to WMIObject. Provides legacy OS compatibility.
-                    $NetworkAdapterConfiguration = Get-WmiObject Win32_NetworkAdapterConfiguration -ErrorAction SilentlyContinue
-                    $queryType = "WMI"
-                }
-                return [PSCustomObject]@{
-                    NetworkAdapterConfiguration = $NetworkAdapterConfiguration
-                    QueryType                   = $queryType
-                }
-            }
-            $NetworkAdapterConfiguration = (Get-SystemType).NetworkAdapterConfiguration
 
             try { # v0.3.0.0 try/catch block for exception handling.
 
@@ -779,12 +757,9 @@ function Get-AllSystemInfo {
             }
             return $nicInfo
         } <# ===END GET LOCAL NIC IP DATA FUNCTION=== #>
-        Get-LocalNicIpData #-NetworkAdapterConfiguration $NetworkAdapterConfiguration
-    } #-ArgumentList $NetworkAdapterConfiguration
+        Get-LocalNicIpData -NetworkAdapterConfiguration $NetworkAdapterConfiguration
+    } -ArgumentList (,$NetworkAdapterConfiguration) # Using comma prefix to parse array, instead of first value only.
 
-
-    # Run metadata function synchronously with Start-Job threads. Need this prior Get-LocalNicIpData variables.
-    $metadata = Get-Metadata -NetworkAdapterConfiguration $NetworkAdapterConfiguration
 
 
     # Collect Job threads result
@@ -861,7 +836,7 @@ function Display-Output {
 
     # v0.5.0.5 GET ALL DISPLAY VARIABLES.
     # v0.4.0.2 Master function
-    $allInfo = Get-AllSystemInfo -NetworkAdapterConfiguration $NetworkAdapterConfiguration
+    $allInfo = Get-AllSystemInfo
     $metadata = $allInfo.Metadata
     # v1.0.0.0 Must get Local NIC IP AFTER release/renew functions. Not BEFORE.
     # v0.5.0.5 Run Local Nic function.

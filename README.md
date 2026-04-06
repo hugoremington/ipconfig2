@@ -19,16 +19,16 @@ When troubleshooting network connectivity or validating security policies, admin
 
 ---
 
-# 🛠 Features
+## 🛠 Features
 
-## 🌐 Public Network Information
+### 🌐 Public Network Information
 - Public IP Address
 - Public DNS Server
 - ISP Name and ASN
 - ISP Location (Geolocation)
 - Timezone
 
-## 💻 System Metadata
+### 💻 System Metadata
 - Host Name
 - Primary DNS Suffix
 - Network Profile Name
@@ -39,21 +39,21 @@ When troubleshooting network connectivity or validating security policies, admin
 - IPv4 Connectivity
 - IPv6 Connectivity
 
-## ⚙️ Network Operations
+### ⚙️ Network Operations
 - DHCP IP Release
 - DHCP IP Renew
 - Flush DNS cache
 - Reset Winsock catalog
 - Timestamp reporting
 
-## 🔌 Network Interface Reporting
+### 🔌 Network Interface Reporting
 - Interface Name
 - Interface Description
 - Media State (Connected / Disconnected)
 - Media Type (Ethernet, Wi-Fi, Bluetooth, Virtual)
 - Physical MAC Address
 
-## 📍 IP Addressing
+### 📍 IP Addressing
 - IPv4 Address
 - IPv6 Address
 - Subnet Mask
@@ -61,12 +61,12 @@ When troubleshooting network connectivity or validating security policies, admin
 - Default Gateway
 - DNS Server
 
-## 📶 Wi-Fi Features
+### 📶 Wi-Fi Features
 - Wi-Fi SSID
 - Wi-Fi Key
 - Wi-Fi Link Speed
 
-## 📄 DHCP Information
+### 📄 DHCP Information
 - DHCPv4 Status
 - DHCPv4 Server
 - Lease Start/End Timestamps
@@ -74,12 +74,14 @@ When troubleshooting network connectivity or validating security policies, admin
 - DHCPv6 IAID
 - DHCPv6 Client DUID
 
-## 📊 Network Telemetry
+### 📊 Network Telemetry
 - Link Speed (Mbps / Gbps)
 - Received Bytes (MB)
 - Sent Bytes (MB)
 
-## 🚀 Additional Capabilities
+### 🚀 Additional Capabilities
+- Install feature
+- PATH environment variable to run directly from Terminal, PowerShell or CMD
 - Bluetooth PAN adapter support
 - Virtual adapter support (e.g. Hyper-V switches)
 - Dynamic interface grouping (IPv4 + IPv6 per adapter)
@@ -93,33 +95,33 @@ When troubleshooting network connectivity or validating security policies, admin
 
 ---
 
-# 📝 To-Do
- - Installer package
- - System environment variables
+## 📝 To-Do
+- Proactively optimise code.
 
 ---
 
-# 📋 Requirements
+## 📋 Requirements
 - Windows OS
 - PowerShell v5.0+ (older versions may work thanks to WMI backward compatibility)
 
 ---
 
-# 📖 Usage
+## 📖 Usage
 
+### Recommended Instructions
+1. Install `ipconfig2.msi`
+2. Launch Terminal, or PowerShell, or Command Prompt
+3. Run `ipconfig2`
+4. (Optional) Enter switches for additional output. `Example: ipconfig2 /all /version`
+
+### Alternative Instructions
 `powershell .\ipconfig2.ps1`
 
 `cmd ipconfig2.exe`
 
-Quick instructions: 
-1. Extract ipconfig2.exe from the downloaded release file
-2. Launch Terminal, or PowerShell, or Command Prompt
-3. Run `ipconfig2.exe`
-4. (Optional) Enter switches for additional output. `Example: ipconfig2 /all`
-
 ---
 
-## ⌨️ Parameter
+### ⌨️ Parameter
 ```powershell
 ipconfig2 [/all] [/flushdns] [/outfile:"C:\Temp\ipconfig2.txt"] [/release] [/renew] [/resetwinsock] [/version]
 ```
@@ -136,8 +138,14 @@ version         = Get utility version and attribution metadata.
 
 ---
 
-# 🛠️ Changelog
+## 🛠️ Changelog
 
+### 1.0.1.0 - 06-Apr-2026
+* New feature: Created a Windows Installer MSI package thanks to Advanced Installer.
+* Install automatically provisions PATH environment variable, so you can run `ipconfig2` directly via terminal or CMD prompt without requiring app path/directoy. Simply type `ipconfig2`. You will need to re-open Terminal/CMD for environment veriable to take into effect. Automatic removal during uninstallation for sanitisation.
+* Code optimisation: Omitted Get-SystemType redundant function from within threaded function Get-LocalNicIpData, as I can now parse $NetworkAdapterConfiguration from the main script function to $nicJob multithread scriptblock by using comma array -ArgumentList (,$NetworkAdapterConfiguration). Improved memory efficiency and performance.
+* Various other bugfixes including omitting unnecessary params from `$allInfo = Get-AllSystemInfo` call.
+* To do: Parse `$NetConnectionQuery = Get-NetConnectionProfile` from Get-Metadata to $nicJob without corrupting other args/params. This should optimise memory efficieny even further. Not a priority.
 ### 1.0.0.0 - 05-Apr-2026
 * This release now completes version 1.0.0.0, as all definitions of done are now fulfilled. `ipconfig2` now supports most of the original data points as ipconfig.
 * New feature: Save to file! It can now export the report as a TXT file using the /outfile switch. Supports the default OS log directory if no path is specified. (\Windows\Logs\ipconfig2). Capable with custom paths. Capable with folder creation (access required.)
@@ -331,7 +339,7 @@ version         = Get utility version and attribution metadata.
 
 ---
 
-# 🪪 Attribution & License
+## 🪪 Attribution & License
 
 Author: Hugo Remington
 
