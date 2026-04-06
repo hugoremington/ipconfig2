@@ -4,8 +4,6 @@
 
 `ipconfig2` is a Windows command-line (CLI) network configuration utility for observing endpoint Public IP, ISP, and Geolocation, from a single pane of glass.
 
-![social preview](Assets/social_preview_v5.png)
-
 ## 🚀 The Problem
 When troubleshooting network connectivity or validating security policies, administrators often have to jump between the command line (for endpoint local IP info) and a web browser (to find endpoint public IP and location). This breaks workflow and adds friction. `ipconfig2` addresses this challenge.
 
@@ -137,6 +135,11 @@ renew           = Renew DHCP IP Address on local network interface cards on syst
 resetwinsock    = Requires administrator privilege and system restart. Resets the Winsock catalog to a clean state, removing any custom LSPs to resolve network problems caused by corrupted Winsock settings. 
 version         = Get utility version and attribution metadata.
 ```
+
+---
+
+## 🖼️ Gallery
+![social preview](Assets/social_preview_v5.png)
 
 ---
 
